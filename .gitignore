@@ -1,0 +1,9 @@
+# Ignore compiled files
+*.dll
+*.obj
+*.bin
+
+# Ignore Visual Studio files
+.vs/
+bin/
+obj/
