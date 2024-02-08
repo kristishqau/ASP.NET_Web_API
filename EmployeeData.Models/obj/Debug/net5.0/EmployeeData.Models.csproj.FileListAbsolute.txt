@@ -1,0 +1,15 @@
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\bin\Debug\net5.0\EmployeeData.Models.deps.json
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\bin\Debug\net5.0\EmployeeData.Models.runtimeconfig.json
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\bin\Debug\net5.0\EmployeeData.Models.runtimeconfig.dev.json
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\bin\Debug\net5.0\EmployeeData.Models.dll
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\bin\Debug\net5.0\ref\EmployeeData.Models.dll
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\bin\Debug\net5.0\EmployeeData.Models.pdb
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\obj\Debug\net5.0\EmployeeData.Models.csproj.AssemblyReference.cache
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\obj\Debug\net5.0\EmployeeData.Models.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\obj\Debug\net5.0\EmployeeData.Models.AssemblyInfoInputs.cache
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\obj\Debug\net5.0\EmployeeData.Models.AssemblyInfo.cs
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\obj\Debug\net5.0\EmployeeData.Models.csproj.CoreCompileInputs.cache
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\obj\Debug\net5.0\EmployeeData.Models.dll
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\obj\Debug\net5.0\ref\EmployeeData.Models.dll
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\obj\Debug\net5.0\EmployeeData.Models.pdb
+C:\Users\user\source\repos\EmployeeData\EmployeeData.Models\obj\Debug\net5.0\EmployeeData.Models.genruntimeconfig.cache
