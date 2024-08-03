@@ -31,6 +31,11 @@ namespace EmployeeData
             })
             .AddJwtBearer(options =>
             {
+                var secretKey = Configuration["JwtSettings:SecretKey"];
+                if (string.IsNullOrEmpty(secretKey))
+                {
+                    throw new ArgumentNullException("JwtSettings:SecretKey", "JWT Secret Key is not configured.");
+                }
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
