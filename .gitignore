@@ -32,8 +32,9 @@ yarn-error.log*
 Thumbs.db
 
 # Ignore app settings with sensitive information
-appsettings.json
-appsettings.Development.json
+EmployeeData/appsettings.json
+EmployeeData/appsettings.Development.json
+EmployeeData/appsettings.Production.json
 
 # Ignore IDE settings
 .vscode/
