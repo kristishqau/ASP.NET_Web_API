@@ -3,7 +3,61 @@
 *.obj
 *.bin
 
-# Ignore Visual Studio files
+# Ignore build output directories
 .vs/
 **/obj/
 **/bin/
+**/out/
+
+# Ignore user-specific files
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Ignore logs and database files
+*.log
+*.ldf
+*.mdf
+
+# Ignore npm/yarn dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore app settings with sensitive information
+appsettings.json
+appsettings.Development.json
+
+# Ignore IDE settings
+.vscode/
+.idea/
+
+# Ignore environment variable files
+.env
+
+# Ignore package managers
+*.nupkg
+*.snupkg
+
+# Ignore coverage reports
+coverage/
+*.lcov
+
+# Ignore build artifacts
+dist/
+build/
+
+# Ignore temporary files
+.tmp/
+.temp/
+*.tmp
+
+# Ignore deployment files
+.publish/
