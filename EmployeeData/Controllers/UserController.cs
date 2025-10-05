@@ -32,16 +32,27 @@ namespace EmployeeData.Controllers
 
         [HttpPost("login")]
         [AllowAnonymous]
-        public IActionResult Login(string username, string password)
+        public IActionResult Login([FromBody] LoginDto loginDto)
         {
-            var token = _userService.Authenticate(username, password);
+            var token = _userService.Authenticate(loginDto.Username, loginDto.Password);
             if (token == null)
             {
                 return Unauthorized(new { Message = "Invalid credentials" });
             }
-            return Ok(new { Token = token });
+
+            // Get user info to send back
+            var user = _dbContext.Users.FirstOrDefault(u => u.UserName == loginDto.Username);
+
+            return Ok(new
+            {
+                Token = token,
+                UserId = user.Id,
+                Username = user.UserName,
+                Role = user.Role,
+                ProfilePictureUrl = user.ProfilePictureUrl
+            });
         }
-        
+
         [HttpGet]
         [Authorize(Roles = "Administrator")]
         [ProducesResponseType(200, Type = typeof(IEnumerable<User>))]
