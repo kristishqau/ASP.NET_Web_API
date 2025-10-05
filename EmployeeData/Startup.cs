@@ -15,15 +15,22 @@ namespace EmployeeData
 {
     public class Startup
     {
+        private readonly string MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
         }
+
         public IConfiguration Configuration { get; }
+
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<AppDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"), 
-                b => b.MigrationsAssembly("EmployeeData")));
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlServer(
+                    Configuration.GetConnectionString("DefaultConnection"),
+                    b => b.MigrationsAssembly("EmployeeData")));
+
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -36,13 +43,25 @@ namespace EmployeeData
                 {
                     throw new ArgumentNullException("JwtSettings:SecretKey", "JWT Secret Key is not configured.");
                 }
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["JwtSettings:SecretKey"])),
-                    ValidateIssuer = false,  
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+                    ValidateIssuer = false,
                     ValidateAudience = false
                 };
+            });
+
+            services.AddCors(options =>
+            {
+                options.AddPolicy(name: MyAllowSpecificOrigins,
+                    builder =>
+                    {
+                        builder.WithOrigins("http://localhost:8080")
+                               .AllowAnyHeader()
+                               .AllowAnyMethod();
+                    });
             });
 
             services.AddControllersWithViews();
@@ -87,6 +106,7 @@ namespace EmployeeData
                 });
             });
         }
+
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
@@ -95,6 +115,7 @@ namespace EmployeeData
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "EmployeeData v1"));
             }
+
             using (var scope = app.ApplicationServices.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -102,10 +123,16 @@ namespace EmployeeData
                 var seed = scope.ServiceProvider.GetRequiredService<Seed>();
                 seed.SeedDataContext();
             }
+
+            // ? Use CORS
+            app.UseCors(MyAllowSpecificOrigins);
+
             app.UseHttpsRedirection();
             app.UseRouting();
+
             app.UseAuthentication();
             app.UseAuthorization();
+
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
         }
     }
