@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+﻿using EmployeeData.Helper;
 using EmployeeData.Dto;
 using EmployeeData.Models;
 using EmployeeData.Services;
@@ -18,15 +18,13 @@ namespace EmployeeData.Controllers
         private readonly IUserService _userService;
         private readonly ITaskService _taskService;
         private readonly IProjectService _projectService;
-        private readonly IMapper _mapper;
         private readonly AppDbContext _dbContext;
 
-        public UserController(IUserService userService, ITaskService taskService, IProjectService projectService, IMapper mapper, AppDbContext dbContext)
+        public UserController(IUserService userService, ITaskService taskService, IProjectService projectService, AppDbContext dbContext)
         {
             _userService = userService;
             _taskService = taskService;
             _projectService = projectService;
-            _mapper = mapper;
             _dbContext = dbContext;
         }
 
@@ -58,7 +56,7 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(200, Type = typeof(IEnumerable<User>))]
          public IActionResult GetUsers()
         {
-            var users = _mapper.Map<List<UserDto>>(_userService.GetUsers());
+            var users = _userService.GetUsers().Select(user => user.ToDto()).ToList();
 
             if (!ModelState.IsValid)
             {
@@ -76,7 +74,7 @@ namespace EmployeeData.Controllers
             if (!_userService.UserExists(id))
                 return NotFound();
 
-            var user = _mapper.Map<UserDto>(_userService.GetUser(id));
+            var user = _userService.GetUser(id).ToDto();
 
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -94,7 +92,7 @@ namespace EmployeeData.Controllers
                 return NotFound();
             }
 
-            var user = _mapper.Map<List<UserDto>>(_userService.GetUsersOfATask(taskId));
+            var user = _userService.GetUsersOfATask(taskId).Select(taskUser => taskUser.ToDto()).ToList();
 
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -112,8 +110,9 @@ namespace EmployeeData.Controllers
                 return NotFound();
             }
 
-            var user = _mapper.Map<List<UserDto>>(
-                _userService.GetUsersOfAProject(projectId));
+            var user = _userService.GetUsersOfAProject(projectId)
+                .Select(projectUser => projectUser.ToDto())
+                .ToList();
 
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -143,7 +142,7 @@ namespace EmployeeData.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var userMap = _mapper.Map<User>(userCreate);
+            var userMap = userCreate.ToEntity();
 
             if (!_userService.CreateUser(projectId, taskId, userMap))
             {
@@ -172,7 +171,7 @@ namespace EmployeeData.Controllers
             if (!ModelState.IsValid)
                 return BadRequest();
 
-            var userMap = _mapper.Map<User>(updatedUser);
+            var userMap = updatedUser.ToEntity();
 
             var existingUser = _dbContext.Users.Local.FirstOrDefault(u => u.Id == userId);
 

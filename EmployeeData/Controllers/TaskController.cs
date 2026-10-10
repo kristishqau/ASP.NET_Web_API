@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+﻿using EmployeeData.Helper;
 using EmployeeData.Dto;
 using EmployeeData.Models;
 using EmployeeData.Services;
@@ -17,14 +17,12 @@ namespace EmployeeData.Controllers
         private readonly ITaskService _taskService;
         private readonly IProjectService _projectService;
         private readonly IUserService _userService;
-        private readonly IMapper _mapper;
         private readonly AppDbContext _dbContext;
-        public TaskController(ITaskService taskService, IProjectService projectService, IUserService userService, IMapper mapper, AppDbContext dbContext)
+        public TaskController(ITaskService taskService, IProjectService projectService, IUserService userService, AppDbContext dbContext)
         {
             _taskService = taskService;
             _projectService = projectService;
             _userService = userService;
-            _mapper = mapper;
             _dbContext = dbContext;
         }
 
@@ -32,7 +30,7 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(200, Type = typeof(IEnumerable<Task>))]
         public IActionResult GetTasks()
         {
-            var tasks = _mapper.Map<List<TaskDto>>(_taskService.GetTasks());
+            var tasks = _taskService.GetTasks().Select(task => task.ToDto()).ToList();
 
             if (!ModelState.IsValid)
             {
@@ -48,7 +46,7 @@ namespace EmployeeData.Controllers
             if (!_taskService.TaskExists(id))
                 return NotFound();
 
-            var task = _mapper.Map<TaskDto>(_taskService.GetTask(id));
+            var task = _taskService.GetTask(id).ToDto();
 
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -90,7 +88,7 @@ namespace EmployeeData.Controllers
                 return StatusCode(403, ModelState);
             }
 
-            var taskMap = _mapper.Map<Task>(taskCreate);
+            var taskMap = taskCreate.ToEntity();
 
             taskMap.Project = _projectService.GetProject(projectId);
 
@@ -122,7 +120,7 @@ namespace EmployeeData.Controllers
             if (!ModelState.IsValid)
                 return BadRequest();
 
-            var taskMap = _mapper.Map<Task>(updatedTask);
+            var taskMap = updatedTask.ToEntity();
 
             var existingTask = _dbContext.Tasks.Local.FirstOrDefault(t => t.Id == taskId);
 

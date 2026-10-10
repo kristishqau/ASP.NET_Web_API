@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+﻿using EmployeeData.Helper;
 using EmployeeData.Dto;
 using EmployeeData.Models;
 using EmployeeData.Services;
@@ -16,13 +16,11 @@ namespace EmployeeData.Controllers
     public class ProjectController : ControllerBase
     {
         private readonly IProjectService _projectService;
-        private readonly IMapper _mapper;
         private readonly AppDbContext _dbContext;
 
-        public ProjectController(IProjectService projectService, IMapper mapper, AppDbContext dbContext)
+        public ProjectController(IProjectService projectService, AppDbContext dbContext)
         {
             _projectService = projectService;
-            _mapper = mapper;
             _dbContext = dbContext;
         }
 
@@ -30,7 +28,7 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(200, Type = typeof(IEnumerable<Project>))]
         public IActionResult GetProjects()
         {
-            var projects =_mapper.Map<List<ProjectDto>>(_projectService.GetProjects());
+            var projects = _projectService.GetProjects().Select(project => project.ToDto()).ToList();
 
             if (!ModelState.IsValid)
             {
@@ -46,7 +44,7 @@ namespace EmployeeData.Controllers
             if (!_projectService.ProjectExists(id))
                 return NotFound();
 
-            var project = _mapper.Map<ProjectDto>(_projectService.GetProject(id));
+            var project = _projectService.GetProject(id).ToDto();
             
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -58,7 +56,8 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(400)]
         public IActionResult GetTasksByProject(int projectId)
         {
-            var tasks = _mapper.Map<List<TaskDto>>(_projectService.GetTasksByProject(projectId));
+            var projectTasks = _projectService.GetTasksByProject(projectId);
+            var tasks = projectTasks?.Select(task => task.ToDto()).ToList();
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
@@ -88,7 +87,7 @@ namespace EmployeeData.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var projectMap = _mapper.Map<Project>(projectCreate);
+            var projectMap = projectCreate.ToEntity();
 
             if (!_projectService.CreateProject(userId, projectMap))
             {
@@ -118,7 +117,7 @@ namespace EmployeeData.Controllers
             if (!ModelState.IsValid)
                 return BadRequest();
 
-            var projectMap = _mapper.Map<Project>(updatedProject);
+            var projectMap = updatedProject.ToEntity();
 
             var existingProject = _dbContext.Projects.Local.FirstOrDefault(p => p.Id == projectId);
 

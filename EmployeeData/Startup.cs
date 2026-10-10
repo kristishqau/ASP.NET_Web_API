@@ -66,7 +66,6 @@ namespace EmployeeData
 
             services.AddControllersWithViews();
             services.AddTransient<Seed>();
-            services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IProjectService, ProjectService>();
             services.AddScoped<ITaskService, TaskService>();
