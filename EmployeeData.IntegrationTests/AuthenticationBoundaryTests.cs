@@ -8,10 +8,12 @@ namespace EmployeeData.IntegrationTests;
 
 public sealed class AuthenticationBoundaryTests : IClassFixture<ApiWebApplicationFactory>
 {
+    private readonly ApiWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     public AuthenticationBoundaryTests(ApiWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
@@ -53,6 +55,7 @@ public sealed class AuthenticationBoundaryTests : IClassFixture<ApiWebApplicatio
     [Fact]
     public async Task Successful_login_does_not_write_access_token_to_console()
     {
+        _factory.ClearLogMessages();
         using var standardOutput = new StringWriter();
         using var standardError = new StringWriter();
         var originalOutput = Console.Out;
@@ -82,6 +85,9 @@ public sealed class AuthenticationBoundaryTests : IClassFixture<ApiWebApplicatio
             Assert.False(string.IsNullOrWhiteSpace(token));
             Assert.DoesNotContain(token, standardOutput.ToString(), StringComparison.Ordinal);
             Assert.DoesNotContain(token, standardError.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain(
+                _factory.LogMessages,
+                message => message.Contains(token, StringComparison.Ordinal));
         }
         finally
         {

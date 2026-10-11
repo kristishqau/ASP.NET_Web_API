@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 
 namespace EmployeeData.Controllers
 {
@@ -144,7 +145,7 @@ namespace EmployeeData.Controllers
         {
             try
             {
-                var userId = Convert.ToInt32(User.FindFirst("id")?.Value);
+                var userId = Convert.ToInt32(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
                 var projects = _projectService.GetProjectsForUser(userId);
 
                 return Ok(projects);

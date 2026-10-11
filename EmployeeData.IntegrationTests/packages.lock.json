@@ -28,6 +28,16 @@
           "SQLitePCLRaw.core": "2.1.12"
         }
       },
+      "System.IdentityModel.Tokens.Jwt": {
+        "type": "Direct",
+        "requested": "[8.23.0, )",
+        "resolved": "8.23.0",
+        "contentHash": "mUuRjk0KKvF3dlF7CKcnjHn/4TFaWRDGjDRtn1rACitoIflv96apfLD9KPDisyCEuc/0ierocnHCvIXBvCL4Sw==",
+        "dependencies": {
+          "Microsoft.IdentityModel.JsonWebTokens": "8.23.0",
+          "Microsoft.IdentityModel.Tokens": "8.23.0"
+        }
+      },
       "xunit.v3": {
         "type": "Direct",
         "requested": "[4.0.2, )",
@@ -743,7 +753,8 @@
           "EmployeeData.Services": "[1.0.0, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.12, )",
           "Microsoft.EntityFrameworkCore.SqlServer": "[10.0.12, )",
-          "Swashbuckle.AspNetCore": "[10.3.0, )"
+          "Swashbuckle.AspNetCore": "[10.3.0, )",
+          "System.IdentityModel.Tokens.Jwt": "[8.23.0, )"
         }
       },
       "employeedata.models": {
@@ -753,8 +764,7 @@
         "type": "Project",
         "dependencies": {
           "EmployeeData.Models": "[1.0.0, )",
-          "Microsoft.EntityFrameworkCore": "[10.0.12, )",
-          "System.IdentityModel.Tokens.Jwt": "[8.23.0, )"
+          "Microsoft.EntityFrameworkCore": "[10.0.12, )"
         }
       },
       "Microsoft.AspNetCore.Authentication.JwtBearer": {
@@ -801,16 +811,6 @@
           "Swashbuckle.AspNetCore.Swagger": "10.3.0",
           "Swashbuckle.AspNetCore.SwaggerGen": "10.3.0",
           "Swashbuckle.AspNetCore.SwaggerUI": "10.3.0"
-        }
-      },
-      "System.IdentityModel.Tokens.Jwt": {
-        "type": "CentralTransitive",
-        "requested": "[8.23.0, )",
-        "resolved": "8.23.0",
-        "contentHash": "mUuRjk0KKvF3dlF7CKcnjHn/4TFaWRDGjDRtn1rACitoIflv96apfLD9KPDisyCEuc/0ierocnHCvIXBvCL4Sw==",
-        "dependencies": {
-          "Microsoft.IdentityModel.JsonWebTokens": "8.23.0",
-          "Microsoft.IdentityModel.Tokens": "8.23.0"
         }
       }
     }

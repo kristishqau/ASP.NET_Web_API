@@ -1,12 +1,9 @@
 ﻿using EmployeeData.Models;
 using Microsoft.AspNetCore.Http;
-using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
-using System.Text;
 
 namespace EmployeeData.Services
 {
@@ -16,13 +13,20 @@ namespace EmployeeData.Services
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IProjectService _projectService;
         private readonly ITaskService _taskService;
+        private readonly IJwtTokenService _jwtTokenService;
 
-        public UserService(AppDbContext dbContext, IProjectService projectService, ITaskService taskService, IHttpContextAccessor httpContextAccessor)
+        public UserService(
+            AppDbContext dbContext,
+            IProjectService projectService,
+            ITaskService taskService,
+            IHttpContextAccessor httpContextAccessor,
+            IJwtTokenService jwtTokenService)
         {
             _dbContext = dbContext;
             _projectService = projectService;
             _httpContextAccessor = httpContextAccessor;
             _taskService = taskService;
+            _jwtTokenService = jwtTokenService;
         }
 
         public ICollection<User> GetUsers()
@@ -200,28 +204,7 @@ namespace EmployeeData.Services
             {
                 return null;
             }
-            var token = GenerateJwtToken(user);
-            return token;
-        }
-        private static string GenerateJwtToken(User user)
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes("qP4tShvWJswe5lZvGv9N3dmKw1Lr2NxzUV8y7iA3Xr6wM0aT5gB1pO3iXu8cR0f");
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(new[]
-                {
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                    new Claim(ClaimTypes.Name, user.UserName),
-                    new Claim(ClaimTypes.Role, user.Role),
-                    new Claim("id", user.Id.ToString())
-                }),
-                Expires = DateTime.UtcNow.AddHours(1),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-            };
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
+            return _jwtTokenService.CreateToken(user);
         }
     }
 }

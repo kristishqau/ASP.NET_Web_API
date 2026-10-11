@@ -17,7 +17,7 @@ Employee can view all tasks that are related to the projects he is part of (in r
 ![API5](https://github.com/user-attachments/assets/77601c5b-b340-42c7-980c-f2ba9195552e)
 
 ## Technologies used:
-- .NET SDK 6.0
+- .NET SDK 10.0 LTS
 - Entity Framework
 - Microsoft SQL Server 2019
 - Microsoft SQL Server Management Studio 19 (Database Management)
@@ -26,3 +26,36 @@ Employee can view all tasks that are related to the projects he is part of (in r
 Models of the project are separated into a diferent project of type Class Library and then is added as reference to the WEB API solution. Model’s properties are enriched with Annotations for validation and documentation purposes.
 
 Web Api project structure consist of Controllers, Services and Models with their repective DTOs. Each of the Service classes have their own Interface which is used with Dependency Injection in the Controller classes.
+
+## JWT configuration
+
+The API does not keep signing keys in source control. Start from
+`EmployeeData/appsettings.example.json` for the non-secret configuration shape and
+supply the real connection string and JWT keys through user secrets, environment
+variables, or the deployment platform's secret store.
+
+Required environment variables use this shape:
+
+```text
+ConnectionStrings__DefaultConnection=<secret connection string>
+Jwt__Issuer=EmployeeData.Api
+Jwt__Audience=EmployeeData.Client
+Jwt__AccessTokenMinutes=60
+Jwt__ActiveKeyId=2026_10
+Jwt__SigningKeys__2026_10=<base64-encoded random key>
+```
+
+Generate a 32-byte development signing key in PowerShell without committing it:
+
+```powershell
+[Convert]::ToBase64String(
+    [Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+The historical repository key must be treated as compromised and must never be
+reused. Deploying this version intentionally invalidates every previously issued
+token, so users must sign in again.
+
+For routine rotation, add the new and previous keys to `Jwt__SigningKeys`, change
+`Jwt__ActiveKeyId` to the new key, restart the API, wait one maximum token lifetime
+plus clock skew, and then remove the previous key.

@@ -13,6 +13,7 @@
 		</PackageReference>
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
 		<PackageReference Include="Swashbuckle.AspNetCore" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" />
 	</ItemGroup>
 
 	<ItemGroup>

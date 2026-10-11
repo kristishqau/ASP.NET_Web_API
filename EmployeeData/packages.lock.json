@@ -50,6 +50,16 @@
           "Swashbuckle.AspNetCore.SwaggerUI": "10.3.0"
         }
       },
+      "System.IdentityModel.Tokens.Jwt": {
+        "type": "Direct",
+        "requested": "[8.23.0, )",
+        "resolved": "8.23.0",
+        "contentHash": "mUuRjk0KKvF3dlF7CKcnjHn/4TFaWRDGjDRtn1rACitoIflv96apfLD9KPDisyCEuc/0ierocnHCvIXBvCL4Sw==",
+        "dependencies": {
+          "Microsoft.IdentityModel.JsonWebTokens": "8.23.0",
+          "Microsoft.IdentityModel.Tokens": "8.23.0"
+        }
+      },
       "Azure.Core": {
         "type": "Transitive",
         "resolved": "1.50.0",
@@ -419,8 +429,7 @@
         "type": "Project",
         "dependencies": {
           "EmployeeData.Models": "[1.0.0, )",
-          "Microsoft.EntityFrameworkCore": "[10.0.12, )",
-          "System.IdentityModel.Tokens.Jwt": "[8.23.0, )"
+          "Microsoft.EntityFrameworkCore": "[10.0.12, )"
         }
       },
       "Microsoft.EntityFrameworkCore": {
@@ -431,16 +440,6 @@
         "dependencies": {
           "Microsoft.EntityFrameworkCore.Abstractions": "10.0.12",
           "Microsoft.EntityFrameworkCore.Analyzers": "10.0.12"
-        }
-      },
-      "System.IdentityModel.Tokens.Jwt": {
-        "type": "CentralTransitive",
-        "requested": "[8.23.0, )",
-        "resolved": "8.23.0",
-        "contentHash": "mUuRjk0KKvF3dlF7CKcnjHn/4TFaWRDGjDRtn1rACitoIflv96apfLD9KPDisyCEuc/0ierocnHCvIXBvCL4Sw==",
-        "dependencies": {
-          "Microsoft.IdentityModel.JsonWebTokens": "8.23.0",
-          "Microsoft.IdentityModel.Tokens": "8.23.0"
         }
       }
     }

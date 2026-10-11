@@ -1,4 +1,5 @@
 using EmployeeData.Services;
+using EmployeeData.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -6,10 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi;
 using Microsoft.EntityFrameworkCore;
-using System;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using System.Text;
 
 namespace EmployeeData
 {
@@ -31,27 +28,7 @@ namespace EmployeeData
                     Configuration.GetConnectionString("DefaultConnection"),
                     b => b.MigrationsAssembly("EmployeeData")));
 
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(options =>
-            {
-                var secretKey = Configuration["JwtSettings:SecretKey"];
-                if (string.IsNullOrEmpty(secretKey))
-                {
-                    throw new ArgumentNullException("JwtSettings:SecretKey", "JWT Secret Key is not configured.");
-                }
-
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-                    ValidateIssuer = false,
-                    ValidateAudience = false
-                };
-            });
+            services.AddJwtSecurity(Configuration);
 
             services.AddCors(options =>
             {
