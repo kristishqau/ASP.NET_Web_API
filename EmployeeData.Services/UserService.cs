@@ -220,18 +220,8 @@ namespace EmployeeData.Services
                 Expires = DateTime.UtcNow.AddHours(1),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
             };
-            try
-            {
-                var token = tokenHandler.CreateToken(tokenDescriptor);
-                var writtenToken = tokenHandler.WriteToken(token);
-                Console.WriteLine($"Generated JWT token: {writtenToken}");
-                return writtenToken;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error generating JWT token: {ex.Message}");
-                throw;
-            }
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
         }
     }
 }
