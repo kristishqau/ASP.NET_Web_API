@@ -86,12 +86,6 @@ namespace EmployeeData.Services
 
             return SaveUser();
         }
-        public bool UpdateUser( User user)
-        {
-            _dbContext.Update(user);
-            return SaveUser();
-        }
-
         public bool AddUserToTaskAndProject(int userId, int? taskId, int? projectId)
         {
             if (_dbContext.UserTasks.Any(ut => ut.UserId == userId && ut.TaskId == taskId) && _dbContext.UserProjects.Any(up => up.UserId == userId && up.ProjectId == projectId))

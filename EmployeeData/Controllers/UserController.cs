@@ -15,6 +15,9 @@ namespace EmployeeData.Controllers
     [Authorize]
     public class UserController : ControllerBase
     {
+        private const string AdministratorRole = "Administrator";
+        private const string EmployeeRole = "Employee";
+
         private readonly IUserService _userService;
         private readonly ITaskService _taskService;
         private readonly IProjectService _projectService;
@@ -30,18 +33,23 @@ namespace EmployeeData.Controllers
 
         [HttpPost("login")]
         [AllowAnonymous]
-        public IActionResult Login([FromBody] LoginDto loginDto)
+        [ProducesResponseType(200, Type = typeof(LoginResponse))]
+        [ProducesResponseType(401)]
+        public IActionResult Login([FromBody] LoginRequest request)
         {
-            var token = _userService.Authenticate(loginDto.Username, loginDto.Password);
+            var token = _userService.Authenticate(request.Username, request.Password);
             if (token == null)
             {
                 return Unauthorized(new { Message = "Invalid credentials" });
             }
 
-            // Get user info to send back
-            var user = _dbContext.Users.FirstOrDefault(u => u.UserName == loginDto.Username);
+            var user = _dbContext.Users.FirstOrDefault(u => u.UserName == request.Username);
+            if (user == null)
+            {
+                return Unauthorized(new { Message = "Invalid credentials" });
+            }
 
-            return Ok(new
+            return Ok(new LoginResponse
             {
                 Token = token,
                 UserId = user.Id,
@@ -52,39 +60,30 @@ namespace EmployeeData.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Administrator")]
-        [ProducesResponseType(200, Type = typeof(IEnumerable<User>))]
-         public IActionResult GetUsers()
+        [Authorize(Roles = AdministratorRole)]
+        [ProducesResponseType(200, Type = typeof(IEnumerable<UserResponse>))]
+        public IActionResult GetUsers()
         {
-            var users = _userService.GetUsers().Select(user => user.ToDto()).ToList();
-
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            var users = _userService.GetUsers().Select(user => user.ToResponse()).ToList();
             return Ok(users);
-        
         }
-       
+
         [HttpGet("{id}", Name = "GetUserById")]
-        [ProducesResponseType(200, Type = typeof(Project))]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(200, Type = typeof(UserResponse))]
+        [ProducesResponseType(404)]
         public IActionResult GetUser(int id)
         {
             if (!_userService.UserExists(id))
                 return NotFound();
 
-            var user = _userService.GetUser(id).ToDto();
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var user = _userService.GetUser(id).ToResponse();
 
             return Ok(user);
         }
-       
+
         [HttpGet("tasks/{taskId}/users")]
-        [ProducesResponseType(200, Type = typeof(User))]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(200, Type = typeof(IEnumerable<UserResponse>))]
+        [ProducesResponseType(404)]
         public IActionResult GetUsersOfATask(int taskId)
         {
             if (!_taskService.TaskExists(taskId))
@@ -92,17 +91,16 @@ namespace EmployeeData.Controllers
                 return NotFound();
             }
 
-            var user = _userService.GetUsersOfATask(taskId).Select(taskUser => taskUser.ToDto()).ToList();
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var user = _userService.GetUsersOfATask(taskId)
+                .Select(taskUser => taskUser.ToResponse())
+                .ToList();
 
             return Ok(user);
         }
-        
+
         [HttpGet("projects/{projectId}/users")]
-        [ProducesResponseType(200, Type = typeof(User))]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(200, Type = typeof(IEnumerable<UserResponse>))]
+        [ProducesResponseType(404)]
         public IActionResult GetUsersOfAProject(int projectId)
         {
             if (!_projectService.ProjectExists(projectId))
@@ -111,26 +109,41 @@ namespace EmployeeData.Controllers
             }
 
             var user = _userService.GetUsersOfAProject(projectId)
-                .Select(projectUser => projectUser.ToDto())
+                .Select(projectUser => projectUser.ToResponse())
                 .ToList();
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
 
             return Ok(user);
         }
 
         [HttpPost]
-        [Authorize(Roles = "Administrator")]
-        [ProducesResponseType(204)]
+        [Authorize(Roles = AdministratorRole)]
+        [ProducesResponseType(201, Type = typeof(UserResponse))]
         [ProducesResponseType(400)]
-        public IActionResult CreateUser([FromQuery] int? projectId, [FromQuery] int? taskId, [FromBody] UserDto userCreate)
+        [ProducesResponseType(422)]
+        public IActionResult CreateUser(
+            [FromQuery] int? projectId,
+            [FromQuery] int? taskId,
+            [FromBody] CreateUserRequest request)
         {
-            if (userCreate == null)
-                return BadRequest(ModelState);
+            var role = GetCanonicalRole(request.Role);
+            if (role == null)
+            {
+                ModelState.AddModelError(nameof(request.Role), "Role must be Administrator or Employee.");
+                return ValidationProblem(ModelState);
+            }
+
+            var userName = request.UserName.Trim();
+            if (userName.Length == 0)
+            {
+                ModelState.AddModelError(nameof(request.UserName), "User name cannot be blank.");
+                return ValidationProblem(ModelState);
+            }
 
             var users = _userService.GetUsers()
-                .Where(p => p.UserName.Trim().ToUpper() == userCreate.UserName.TrimEnd().ToUpper())
+                .Where(user => string.Equals(
+                    user.UserName.Trim(),
+                    userName,
+                    StringComparison.OrdinalIgnoreCase))
                 .FirstOrDefault();
 
             if (users != null)
@@ -139,10 +152,9 @@ namespace EmployeeData.Controllers
                 return StatusCode(422, ModelState);
             }
 
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var userMap = userCreate.ToEntity();
+            request.UserName = userName;
+            request.Role = role;
+            var userMap = request.ToEntity();
 
             if (!_userService.CreateUser(projectId, taskId, userMap))
             {
@@ -150,52 +162,97 @@ namespace EmployeeData.Controllers
                 return StatusCode(500, ModelState);
             }
 
-            return Ok("Successfully created");
+            return CreatedAtRoute(
+                "GetUserById",
+                new { id = userMap.Id },
+                userMap.ToResponse());
         }
 
         [HttpPut("{userId}")]
         [ProducesResponseType(400)]
         [ProducesResponseType(204)]
+        [ProducesResponseType(403)]
         [ProducesResponseType(404)]
-        public IActionResult UpdateUser(int userId,[FromBody] UserDto updatedUser)
+        [ProducesResponseType(422)]
+        public IActionResult UpdateUser(
+            int userId,
+            [FromBody] UpdateUserProfileRequest request)
         {
-            if (updatedUser == null)
-                return BadRequest(ModelState);
+            var currentUserId = _userService.GetCurrentUserId();
+            var canUpdate = User.IsInRole(AdministratorRole)
+                || (User.IsInRole(EmployeeRole) && userId == currentUserId);
 
-            if (userId != updatedUser.Id)
-                return BadRequest(ModelState);
+            if (!canUpdate)
+            {
+                return Forbid();
+            }
 
             if (!_userService.UserExists(userId))
                 return NotFound();
 
-            if (!ModelState.IsValid)
-                return BadRequest();
-
-            var userMap = updatedUser.ToEntity();
-
-            var existingUser = _dbContext.Users.Local.FirstOrDefault(u => u.Id == userId);
-
-            if (existingUser != null)
+            var userName = request.UserName.Trim();
+            if (userName.Length == 0)
             {
-                userMap = existingUser;
-            }
-            else
-            {
-                _dbContext.Attach(userMap);
+                ModelState.AddModelError(nameof(request.UserName), "User name cannot be blank.");
+                return ValidationProblem(ModelState);
             }
 
-            if (_userService.GetUserRole(_userService.GetCurrentUserId()) == "Employee")
+            if (_userService.GetUsers().Any(user =>
+                user.Id != userId
+                && string.Equals(
+                    user.UserName.Trim(),
+                    userName,
+                    StringComparison.OrdinalIgnoreCase)))
             {
-                if (userId != _userService.GetCurrentUserId())
-                {
-                    ModelState.AddModelError("", "Employees can only update their own profile.");
-                    return StatusCode(403, ModelState);
-                }
+                ModelState.AddModelError(nameof(request.UserName), "User already exists.");
+                return StatusCode(422, ModelState);
             }
 
-            if (!_userService.UpdateUser( userMap))
+            var user = _userService.GetUser(userId);
+            if (user.UserName == userName && user.ProfilePictureUrl == request.ProfilePictureUrl)
+                return NoContent();
+
+            user.UserName = userName;
+            user.ProfilePictureUrl = request.ProfilePictureUrl;
+
+            if (!_userService.SaveUser())
             {
                 ModelState.AddModelError("", "Something went wrong updating User properties.");
+                return StatusCode(500, ModelState);
+            }
+
+            return NoContent();
+        }
+
+        [HttpPut("{userId}/role")]
+        [Authorize(Roles = AdministratorRole)]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(403)]
+        [ProducesResponseType(404)]
+        public IActionResult SetUserRole(
+            int userId,
+            [FromBody] SetUserRoleRequest request)
+        {
+            if (!_userService.UserExists(userId))
+                return NotFound();
+
+            var role = GetCanonicalRole(request.Role);
+            if (role == null)
+            {
+                ModelState.AddModelError(nameof(request.Role), "Role must be Administrator or Employee.");
+                return ValidationProblem(ModelState);
+            }
+
+            var user = _userService.GetUser(userId);
+            if (user.Role == role)
+                return NoContent();
+
+            user.Role = role;
+
+            if (!_userService.SaveUser())
+            {
+                ModelState.AddModelError("", "Something went wrong updating the user role.");
                 return StatusCode(500, ModelState);
             }
 
@@ -226,7 +283,7 @@ namespace EmployeeData.Controllers
         }
 
         [HttpDelete("removeUserFromTaskAndProject")]
-        [Authorize(Roles = "Administrator")]
+        [Authorize(Roles = AdministratorRole)]
         [ProducesResponseType(400)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
@@ -276,7 +333,7 @@ namespace EmployeeData.Controllers
         }
 
         [HttpDelete("{userId}")]
-        [Authorize(Roles = "Administrator")]
+        [Authorize(Roles = AdministratorRole)]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
@@ -312,6 +369,22 @@ namespace EmployeeData.Controllers
             }
 
             return NoContent();
+        }
+
+        private static string GetCanonicalRole(string role)
+        {
+            if (string.IsNullOrWhiteSpace(role))
+                return null;
+
+            var trimmedRole = role.Trim();
+
+            if (string.Equals(trimmedRole, AdministratorRole, StringComparison.OrdinalIgnoreCase))
+                return AdministratorRole;
+
+            if (string.Equals(trimmedRole, EmployeeRole, StringComparison.OrdinalIgnoreCase))
+                return EmployeeRole;
+
+            return null;
         }
     }
 }

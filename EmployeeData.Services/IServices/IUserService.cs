@@ -14,7 +14,6 @@ namespace EmployeeData.Services
         bool CreateUser(int? projectId, int? taskId, User user);
         bool SaveUser();
         string Authenticate(string username, string password);
-        bool UpdateUser(User user);
         string GetUserRole(int userId);
         int GetCurrentUserId();
         bool AddUserToTaskAndProject(int userId, int? taskId, int? projectId);

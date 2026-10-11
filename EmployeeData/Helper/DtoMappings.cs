@@ -36,18 +36,16 @@ namespace EmployeeData.Helper
             IsFinished = task.IsFinished
         };
 
-        public static UserDto ToDto(this User user) => new()
+        public static UserResponse ToResponse(this User user) => new()
         {
             Id = user.Id,
             UserName = user.UserName,
-            Password = user.Password,
             Role = user.Role,
             ProfilePictureUrl = user.ProfilePictureUrl
         };
 
-        public static User ToEntity(this UserDto user) => new()
+        public static User ToEntity(this CreateUserRequest user) => new()
         {
-            Id = user.Id,
             UserName = user.UserName,
             Password = user.Password,
             Role = user.Role,
