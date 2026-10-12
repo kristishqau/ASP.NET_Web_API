@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
 
 namespace EmployeeData
 {
@@ -82,12 +84,10 @@ namespace EmployeeData
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "EmployeeData v1"));
             }
 
-            using (var scope = app.ApplicationServices.CreateScope())
+            if (!env.IsEnvironment("Testing"))
             {
-                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                dbContext.Database.EnsureCreated();
-                var seed = scope.ServiceProvider.GetRequiredService<Seed>();
-                seed.SeedDataContext();
+                ValidateDatabaseMigrations(app);
+                SeedData(app);
             }
 
             // ? Use CORS
@@ -100,6 +100,27 @@ namespace EmployeeData
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+        }
+
+        private static void ValidateDatabaseMigrations(IApplicationBuilder app)
+        {
+            using var scope = app.ApplicationServices.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var pendingMigrations = dbContext.Database.GetPendingMigrations().ToArray();
+
+            if (pendingMigrations.Length == 0)
+                return;
+
+            throw new InvalidOperationException(
+                "The database schema is not current. Apply migrations before starting the API. "
+                + $"Pending migrations: {string.Join(", ", pendingMigrations)}. "
+                + "For a legacy database created with EnsureCreated, follow the adoption procedure in README.md.");
+        }
+
+        private static void SeedData(IApplicationBuilder app)
+        {
+            using var scope = app.ApplicationServices.CreateScope();
+            scope.ServiceProvider.GetRequiredService<Seed>().SeedDataContext();
         }
     }
 }

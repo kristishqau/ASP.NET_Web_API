@@ -59,3 +59,46 @@ token, so users must sign in again.
 For routine rotation, add the new and previous keys to `Jwt__SigningKeys`, change
 `Jwt__ActiveKeyId` to the new key, restart the API, wait one maximum token lifetime
 plus clock skew, and then remove the previous key.
+
+## Database lifecycle
+
+The API validates the migration history at startup but never creates or migrates
+the production schema itself. This keeps schema changes explicit, reviewable, and
+separate from application startup. The process stops with the pending migration
+names if the configured database is not current.
+
+Restore the repository-pinned Entity Framework tool before managing the schema:
+
+```powershell
+dotnet tool restore
+```
+
+For a new, empty database—or one already managed by EF migrations—apply the
+checked-in migrations with:
+
+```powershell
+dotnet ef database update `
+  --project EmployeeData `
+  --startup-project EmployeeData
+```
+
+Earlier versions of this application used `EnsureCreated`. Such databases have
+the application tables but usually lack `__EFMigrationsHistory`; applying the
+initial migration directly would then try to recreate those tables. Back up the
+database and run [scripts/adopt-legacy-database.sql](scripts/adopt-legacy-database.sql)
+against that database first. The script is transactional and will record the
+historical baseline only after validating every expected application column,
+primary key, foreign key, and index. It refuses empty or structurally
+incompatible schemas without changing them; compatible extra indexes are
+preserved.
+
+With Windows authentication and `sqlcmd`, the adoption command has this shape:
+
+```powershell
+sqlcmd -S <server> -d <database> -E `
+  -i scripts/adopt-legacy-database.sql -b
+```
+
+After adoption, apply pending migrations with the same `dotnet ef database
+update` command. Re-running the adoption script is safe: if its baseline entry
+already exists, it exits without making changes.

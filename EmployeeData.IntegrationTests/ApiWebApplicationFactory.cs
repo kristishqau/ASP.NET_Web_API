@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace EmployeeData.IntegrationTests;
@@ -84,6 +85,18 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
 
             services.AddDbContext<AppDbContext>(options => options.UseSqlite(_connection));
         });
+    }
+
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        var host = base.CreateHost(builder);
+
+        using var scope = host.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        dbContext.Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<Seed>().SeedDataContext();
+
+        return host;
     }
 
     internal void ClearLogMessages()
