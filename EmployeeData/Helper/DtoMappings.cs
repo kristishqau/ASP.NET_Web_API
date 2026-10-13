@@ -47,7 +47,6 @@ namespace EmployeeData.Helper
         public static User ToEntity(this CreateUserRequest user) => new()
         {
             UserName = user.UserName,
-            Password = user.Password,
             Role = user.Role,
             ProfilePictureUrl = user.ProfilePictureUrl
         };

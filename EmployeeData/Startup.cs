@@ -1,10 +1,13 @@
 using EmployeeData.Services;
 using EmployeeData.Security;
+using EmployeeData.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -31,6 +34,12 @@ namespace EmployeeData
                     b => b.MigrationsAssembly("EmployeeData")));
 
             services.AddJwtSecurity(Configuration);
+            services.AddOptions<BootstrapAdminOptions>()
+                .Bind(Configuration.GetSection(BootstrapAdminOptions.SectionName))
+                .ValidateOnStart();
+            services.AddSingleton<
+                IValidateOptions<BootstrapAdminOptions>,
+                BootstrapAdminOptionsValidator>();
 
             services.AddCors(options =>
             {
@@ -44,7 +53,8 @@ namespace EmployeeData
             });
 
             services.AddControllersWithViews();
-            services.AddTransient<Seed>();
+            services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+            services.AddScoped<AdministratorBootstrapper>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IProjectService, ProjectService>();
             services.AddScoped<ITaskService, TaskService>();
@@ -87,7 +97,7 @@ namespace EmployeeData
             if (!env.IsEnvironment("Testing"))
             {
                 ValidateDatabaseMigrations(app);
-                SeedData(app);
+                BootstrapAdministrator(app);
             }
 
             // ? Use CORS
@@ -117,10 +127,10 @@ namespace EmployeeData
                 + "For a legacy database created with EnsureCreated, follow the adoption procedure in README.md.");
         }
 
-        private static void SeedData(IApplicationBuilder app)
+        private static void BootstrapAdministrator(IApplicationBuilder app)
         {
             using var scope = app.ApplicationServices.CreateScope();
-            scope.ServiceProvider.GetRequiredService<Seed>().SeedDataContext();
+            scope.ServiceProvider.GetRequiredService<AdministratorBootstrapper>().Bootstrap();
         }
     }
 }

@@ -102,3 +102,52 @@ sqlcmd -S <server> -d <database> -E `
 After adoption, apply pending migrations with the same `dotnet ef database
 update` command. Re-running the adoption script is safe: if its baseline entry
 already exists, it exits without making changes.
+
+## Initial administrator bootstrap
+
+The API no longer creates a fixed administrator or stores a demonstration
+password in production code. Administrator creation is disabled by default and
+is allowed only as an explicit first-run operation against an empty database.
+
+Supply the bootstrap credential through the deployment secret store, after the
+database migrations have been applied:
+
+```text
+BootstrapAdmin__Enabled=true
+BootstrapAdmin__RotateLegacySeed=false
+BootstrapAdmin__UserName=<initial administrator user name>
+BootstrapAdmin__Password=<unique password of 15-128 characters>
+BootstrapAdmin__ProfilePictureUrl=<optional URL>
+```
+
+Start the API once, confirm the administrator can sign in, then set
+`BootstrapAdmin__Enabled=false` and remove the bootstrap password from the
+runtime environment. Re-running an enabled bootstrap never resets a password.
+If the database is already populated and does not contain the configured
+administrator, startup fails instead of silently granting privileges.
+
+An existing database created by an older version may still contain the
+historical demonstration administrator and its public credential. This version
+detects that exact credential and refuses to start until it is rotated. Perform
+the one-time rotation with `BootstrapAdmin__Enabled=false`,
+`BootstrapAdmin__RotateLegacySeed=true`, `BootstrapAdmin__UserName=admin`, and a
+new unique `BootstrapAdmin__Password`. After a successful start and login, set
+`BootstrapAdmin__RotateLegacySeed=false` and remove the password from the
+environment. The rotation is idempotent for the same replacement password and
+never resets a different credential.
+
+## Password migration behavior
+
+New credentials are stored with ASP.NET Core's password hasher. During the
+transition from the historical schema, a user with no `PasswordHash` can sign in
+with the existing password once; a successful login writes a hash and clears the
+legacy plaintext value before issuing a token. A non-null hash is authoritative,
+so an empty, malformed, or non-matching hash never falls back to plaintext.
+
+This is an additive database migration, but the data upgrade is intentionally
+one-way: an older application binary cannot authenticate an account after its
+plaintext value has been cleared. Stop all older instances and deploy this
+version as a coordinated maintenance release. Roll forward or restore a
+pre-migration backup on failure; the down migration refuses to discard stored
+hashes. Stop every application instance before applying or rolling back this
+migration.

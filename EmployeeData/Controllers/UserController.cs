@@ -156,7 +156,7 @@ namespace EmployeeData.Controllers
             request.Role = role;
             var userMap = request.ToEntity();
 
-            if (!_userService.CreateUser(projectId, taskId, userMap))
+            if (!_userService.CreateUser(projectId, taskId, userMap, request.Password))
             {
                 ModelState.AddModelError("", "Something went wrong while saving");
                 return StatusCode(500, ModelState);

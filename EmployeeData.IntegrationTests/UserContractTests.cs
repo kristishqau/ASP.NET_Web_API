@@ -35,7 +35,9 @@ public sealed class UserContractTests : IClassFixture<ApiWebApplicationFactory>
     public async Task User_responses_never_serialize_credentials()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var administrator = await LoginAsync("admin", "adminpassword");
+        var administrator = await LoginAsync(
+            ApiWebApplicationFactory.AdministratorUserName,
+            ApiWebApplicationFactory.AdministratorPassword);
         var userName = $"contract-{Guid.NewGuid():N}";
 
         using var createRequest = CreateAuthenticatedJsonRequest(
@@ -83,7 +85,9 @@ public sealed class UserContractTests : IClassFixture<ApiWebApplicationFactory>
     public async Task Profile_update_cannot_change_password_or_role()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var administrator = await LoginAsync("admin", "adminpassword");
+        var administrator = await LoginAsync(
+            ApiWebApplicationFactory.AdministratorUserName,
+            ApiWebApplicationFactory.AdministratorPassword);
         var userName = $"employee-{Guid.NewGuid():N}";
         const string originalPassword = "original-password";
         const string replacementPassword = "replacement-password";
@@ -157,7 +161,9 @@ public sealed class UserContractTests : IClassFixture<ApiWebApplicationFactory>
     public async Task Employee_cannot_probe_or_update_another_profile()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var administrator = await LoginAsync("admin", "adminpassword");
+        var administrator = await LoginAsync(
+            ApiWebApplicationFactory.AdministratorUserName,
+            ApiWebApplicationFactory.AdministratorPassword);
         var userName = $"boundary-{Guid.NewGuid():N}";
         var employeeUser = await CreateUserAsync(
             administrator.Token,

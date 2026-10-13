@@ -11,7 +11,7 @@ namespace EmployeeData.Services
         ICollection<User> GetUsersOfATask(int taskId);
         ICollection<User> GetUsersOfAProject(int projectId);
         bool UserExists(int id);
-        bool CreateUser(int? projectId, int? taskId, User user);
+        bool CreateUser(int? projectId, int? taskId, User user, string password);
         bool SaveUser();
         string Authenticate(string username, string password);
         string GetUserRole(int userId);

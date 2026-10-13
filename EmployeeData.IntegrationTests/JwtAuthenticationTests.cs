@@ -100,8 +100,8 @@ public sealed class JwtAuthenticationTests : IClassFixture<ApiWebApplicationFact
             "/api/User/login",
             new
             {
-                username = "admin",
-                password = "adminpassword"
+                username = ApiWebApplicationFactory.AdministratorUserName,
+                password = ApiWebApplicationFactory.AdministratorPassword
             },
             TestContext.Current.CancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(

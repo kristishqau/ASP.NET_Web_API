@@ -1,9 +1,14 @@
 ﻿using EmployeeData.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace EmployeeData.Services
 {
@@ -14,19 +19,25 @@ namespace EmployeeData.Services
         private readonly IProjectService _projectService;
         private readonly ITaskService _taskService;
         private readonly IJwtTokenService _jwtTokenService;
+        private readonly IPasswordHasher<User> _passwordHasher;
+        private readonly ILogger<UserService> _logger;
 
         public UserService(
             AppDbContext dbContext,
             IProjectService projectService,
             ITaskService taskService,
             IHttpContextAccessor httpContextAccessor,
-            IJwtTokenService jwtTokenService)
+            IJwtTokenService jwtTokenService,
+            IPasswordHasher<User> passwordHasher,
+            ILogger<UserService> logger)
         {
             _dbContext = dbContext;
             _projectService = projectService;
             _httpContextAccessor = httpContextAccessor;
             _taskService = taskService;
             _jwtTokenService = jwtTokenService;
+            _passwordHasher = passwordHasher;
+            _logger = logger;
         }
 
         public ICollection<User> GetUsers()
@@ -46,8 +57,11 @@ namespace EmployeeData.Services
             return _dbContext.UserProjects.Where(p => p.Project.Id == projectId).Select(u => u.User).ToList();
         }
 
-        public bool CreateUser(int? projectId, int? taskId, User user)
+        public bool CreateUser(int? projectId, int? taskId, User user, string password)
         {
+            user.Password = string.Empty;
+            user.PasswordHash = _passwordHasher.HashPassword(user, password);
+
             if (projectId.HasValue)
             {
                 var userProjectEntity = _dbContext.Projects.Where(p => p.Id == projectId).FirstOrDefault();
@@ -192,13 +206,97 @@ namespace EmployeeData.Services
         }
         public string Authenticate(string username, string password)
         {
-            var user = _dbContext.Users.SingleOrDefault(u => u.UserName == username && u.Password == password);
-
-            if (user == null)
-            {
+            if (string.IsNullOrEmpty(username) || password == null)
                 return null;
+
+            const int maxVerificationAttempts = 2;
+            for (var attempt = 0; attempt < maxVerificationAttempts; attempt++)
+            {
+                var user = _dbContext.Users
+                    .AsNoTracking()
+                    .SingleOrDefault(candidate => candidate.UserName == username);
+
+                if (user == null)
+                    return null;
+
+                if (user.PasswordHash == null)
+                {
+                    if (!LegacyPasswordMatches(user.Password, password))
+                        return null;
+
+                    var passwordHash = _passwordHasher.HashPassword(user, password);
+                    var updated = _dbContext.Users
+                        .Where(candidate =>
+                            candidate.Id == user.Id
+                            && candidate.PasswordHash == null
+                            && candidate.Password == user.Password)
+                        .ExecuteUpdate(setters => setters
+                            .SetProperty(candidate => candidate.PasswordHash, passwordHash)
+                            .SetProperty(candidate => candidate.Password, string.Empty));
+
+                    if (updated == 0)
+                        continue;
+
+                    user.PasswordHash = passwordHash;
+                    user.Password = string.Empty;
+                    return _jwtTokenService.CreateToken(user);
+                }
+
+                PasswordVerificationResult verificationResult;
+                try
+                {
+                    verificationResult = _passwordHasher.VerifyHashedPassword(
+                        user,
+                        user.PasswordHash,
+                        password);
+                }
+                catch (FormatException)
+                {
+                    _logger.LogWarning(
+                        "Stored password hash is malformed for user {UserId}.",
+                        user.Id);
+                    return null;
+                }
+
+                if (verificationResult == PasswordVerificationResult.Failed)
+                    return null;
+
+                var requiresRehash =
+                    verificationResult == PasswordVerificationResult.SuccessRehashNeeded;
+                if (!requiresRehash && string.IsNullOrEmpty(user.Password))
+                    return _jwtTokenService.CreateToken(user);
+
+                var replacementHash = requiresRehash
+                    ? _passwordHasher.HashPassword(user, password)
+                    : user.PasswordHash;
+                var hashUpdated = _dbContext.Users
+                    .Where(candidate =>
+                        candidate.Id == user.Id
+                        && candidate.PasswordHash == user.PasswordHash
+                        && candidate.Password == user.Password)
+                    .ExecuteUpdate(setters => setters
+                        .SetProperty(candidate => candidate.PasswordHash, replacementHash)
+                        .SetProperty(candidate => candidate.Password, string.Empty));
+
+                if (hashUpdated == 0)
+                    continue;
+
+                user.PasswordHash = replacementHash;
+                user.Password = string.Empty;
+                return _jwtTokenService.CreateToken(user);
             }
-            return _jwtTokenService.CreateToken(user);
+
+            return null;
+        }
+
+        private static bool LegacyPasswordMatches(string storedPassword, string providedPassword)
+        {
+            if (storedPassword == null)
+                return false;
+
+            var storedDigest = SHA256.HashData(Encoding.UTF8.GetBytes(storedPassword));
+            var providedDigest = SHA256.HashData(Encoding.UTF8.GetBytes(providedPassword));
+            return CryptographicOperations.FixedTimeEquals(storedDigest, providedDigest);
         }
     }
 }

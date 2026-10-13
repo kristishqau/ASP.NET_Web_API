@@ -70,8 +70,8 @@ public sealed class AuthenticationBoundaryTests : IClassFixture<ApiWebApplicatio
                 "/api/User/login",
                 new
                 {
-                    username = "admin",
-                    password = "adminpassword"
+                    username = ApiWebApplicationFactory.AdministratorUserName,
+                    password = ApiWebApplicationFactory.AdministratorPassword
                 },
                 TestContext.Current.CancellationToken);
             var responseBody = await response.Content.ReadAsStringAsync(

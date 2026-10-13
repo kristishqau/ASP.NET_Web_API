@@ -1,3 +1,4 @@
+using EmployeeData.Security;
 using System.ComponentModel.DataAnnotations;
 
 namespace EmployeeData.Dto
@@ -9,7 +10,9 @@ namespace EmployeeData.Dto
         public string UserName { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(128, MinimumLength = 8)]
+        [StringLength(
+            PasswordPolicy.MaximumLength,
+            MinimumLength = PasswordPolicy.MinimumLength)]
         public string Password { get; set; } = string.Empty;
 
         [Required]

@@ -11,6 +11,8 @@ namespace EmployeeData.Models
         public string UserName { get; set; }
         [Required]
         public string Password { get; set; }
+        [StringLength(512)]
+        public string PasswordHash { get; set; }
         public string Role { get; set; }
         public string ProfilePictureUrl { get; set; }
         public ICollection<UserProject> UserProjects { get; set; }
