@@ -32,7 +32,7 @@ public sealed class UserContractTests : IClassFixture<ApiWebApplicationFactory>
     }
 
     [Fact]
-    public async Task User_responses_never_serialize_credentials()
+    public async Task Api_get_responses_never_serialize_credentials()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var administrator = await LoginAsync(
@@ -67,7 +67,13 @@ public sealed class UserContractTests : IClassFixture<ApiWebApplicationFactory>
             "/api/User",
             $"/api/User/{userId}",
             $"/api/User/projects/{projectId}/users",
-            $"/api/User/tasks/{taskId}/users"
+            $"/api/User/tasks/{taskId}/users",
+            "/api/Project",
+            $"/api/Project/{projectId}",
+            $"/api/Project/{projectId}/tasks",
+            "/api/Project/GetProjectsForUser",
+            "/api/Task",
+            $"/api/Task/{taskId}"
         };
 
         foreach (var path in paths)

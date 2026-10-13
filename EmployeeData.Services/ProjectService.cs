@@ -58,22 +58,34 @@ namespace EmployeeData.Services
         public IEnumerable<Project> GetProjectsForUser(int userId)
         {
             var currentUserRole = GetUserRole(userId);
+            var projects = _dbContext.Projects
+                .AsNoTracking()
+                .OrderBy(project => project.Id);
 
             if (currentUserRole == "Administrator")
             {
-                return _dbContext.Projects.ToList();
+                return projects
+                    .Select(project => new Project
+                    {
+                        Id = project.Id,
+                        Name = project.Name,
+                        Description = project.Description
+                    })
+                    .ToList();
             }
-            else if (currentUserRole == "Employee")
-            {
-                var user = _dbContext.Users
-            .Include(u => u.UserProjects)
-            .ThenInclude(up => up.Project)
-            .FirstOrDefault(u => u.Id == userId);
 
-                if (user != null)
-                {
-                    return user.UserProjects.Select(up => up.Project).ToList();
-                }
+            if (currentUserRole == "Employee")
+            {
+                return projects
+                    .Where(project => project.UserProjects.Any(userProject =>
+                        userProject.UserId == userId))
+                    .Select(project => new Project
+                    {
+                        Id = project.Id,
+                        Name = project.Name,
+                        Description = project.Description
+                    })
+                    .ToList();
             }
 
             return Enumerable.Empty<Project>();
