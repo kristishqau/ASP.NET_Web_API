@@ -16,25 +16,19 @@ namespace EmployeeData.Services
     {
         private readonly AppDbContext _dbContext;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IProjectService _projectService;
-        private readonly ITaskService _taskService;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly IPasswordHasher<User> _passwordHasher;
         private readonly ILogger<UserService> _logger;
 
         public UserService(
             AppDbContext dbContext,
-            IProjectService projectService,
-            ITaskService taskService,
             IHttpContextAccessor httpContextAccessor,
             IJwtTokenService jwtTokenService,
             IPasswordHasher<User> passwordHasher,
             ILogger<UserService> logger)
         {
             _dbContext = dbContext;
-            _projectService = projectService;
             _httpContextAccessor = httpContextAccessor;
-            _taskService = taskService;
             _jwtTokenService = jwtTokenService;
             _passwordHasher = passwordHasher;
             _logger = logger;
@@ -57,123 +51,190 @@ namespace EmployeeData.Services
             return _dbContext.UserProjects.Where(p => p.Project.Id == projectId).Select(u => u.User).ToList();
         }
 
-        public bool CreateUser(int? projectId, int? taskId, User user, string password)
+        public UserAssignmentResult CreateUser(int? projectId, int? taskId, User user, string password)
         {
+            var assignmentResult = ResolveAssignment(
+                taskId,
+                projectId,
+                out var task,
+                out var project);
+            if (assignmentResult != UserAssignmentResult.Succeeded)
+                return assignmentResult;
+
             user.Password = string.Empty;
             user.PasswordHash = _passwordHasher.HashPassword(user, password);
 
-            if (projectId.HasValue)
+            _dbContext.Users.Add(user);
+
+            if (project != null)
             {
-                var userProjectEntity = _dbContext.Projects.Where(p => p.Id == projectId).FirstOrDefault();
-
-                if (userProjectEntity != null)
+                _dbContext.UserProjects.Add(new UserProject
                 {
-                    var userProject = new UserProject()
-                    {
-                        User = user,
-                        Project = userProjectEntity
-                    };
-
-                    _dbContext.Add(userProject);
-                }
+                    User = user,
+                    Project = project
+                });
             }
 
-            if (taskId.HasValue)
+            if (task != null)
             {
-
-                var task = _dbContext.Tasks.Where(t => t.Id == taskId).FirstOrDefault();
-
-                if (task != null)
+                _dbContext.UserTasks.Add(new UserTask
                 {
-
-                    var userTask = new UserTask()
-                    {
-                        User = user,
-                        Task = task
-                    };
-
-                    _dbContext.Add(userTask);
-                }
+                    User = user,
+                    Task = task
+                });
             }
 
-            _dbContext.Add(user);
-
-            return SaveUser();
+            return _dbContext.SaveChanges() > 0
+                ? UserAssignmentResult.Succeeded
+                : UserAssignmentResult.SaveFailed;
         }
-        public bool AddUserToTaskAndProject(int userId, int? taskId, int? projectId)
+
+        public UserAssignmentResult AddUserToTaskAndProject(int userId, int? taskId, int? projectId)
         {
-            if (_dbContext.UserTasks.Any(ut => ut.UserId == userId && ut.TaskId == taskId) && _dbContext.UserProjects.Any(up => up.UserId == userId && up.ProjectId == projectId))
-            {
-                return false;
-            }
+            if (!taskId.HasValue && !projectId.HasValue)
+                return UserAssignmentResult.InvalidSelection;
 
             var user = _dbContext.Users.FirstOrDefault(u => u.Id == userId);
-            var task = _dbContext.Tasks.FirstOrDefault(t => t.Id == taskId);
-            var project = _dbContext.Projects.FirstOrDefault(p => p.Id == projectId);
+            if (user == null)
+                return UserAssignmentResult.UserNotFound;
 
-            if (user != null && task != null && project != null)
+            var assignmentResult = ResolveAssignment(
+                taskId,
+                projectId,
+                out var task,
+                out var project);
+            if (assignmentResult != UserAssignmentResult.Succeeded)
+                return assignmentResult;
+
+            var hasChanges = false;
+            if (project != null
+                && !_dbContext.UserProjects.Any(userProject =>
+                    userProject.UserId == userId
+                    && userProject.ProjectId == project.Id))
             {
-                if (GetUserRole(GetCurrentUserId()) == "Employee" && _projectService.IsUserInProject(GetCurrentUserId(), projectId.GetValueOrDefault()))
+                _dbContext.UserProjects.Add(new UserProject
                 {
-                    if (!_projectService.IsUserInProject(userId, projectId.GetValueOrDefault()))
-                    {
-                        return false;
-                    }
-                }
-                if (!_dbContext.UserTasks.Any(ut => ut.UserId == userId && ut.TaskId == taskId))
-                {
-                    var userTask = new UserTask
-                    {
-                        User = user,
-                        Task = task
-                    };
-                    _dbContext.UserTasks.Add(userTask);
-                    _dbContext.SaveChanges();
-                }
-
-                if (!_dbContext.UserProjects.Any(up => up.UserId == userId && up.ProjectId == projectId))
-                {
-                    var userProject = new UserProject
-                    {
-                        User = user,
-                        Project = project
-                    };
-                    _dbContext.UserProjects.Add(userProject);
-                    _dbContext.SaveChanges();
-                }
-                _dbContext.SaveChanges();
-                return true;
+                    User = user,
+                    Project = project
+                });
+                hasChanges = true;
             }
 
-            return false;
+            if (task != null
+                && !_dbContext.UserTasks.Any(userTask =>
+                    userTask.UserId == userId
+                    && userTask.TaskId == task.Id))
+            {
+                _dbContext.UserTasks.Add(new UserTask
+                {
+                    User = user,
+                    Task = task
+                });
+                hasChanges = true;
+            }
+
+            if (!hasChanges)
+                return UserAssignmentResult.Succeeded;
+
+            return _dbContext.SaveChanges() > 0
+                ? UserAssignmentResult.Succeeded
+                : UserAssignmentResult.SaveFailed;
         }
 
-        public bool RemoveUserFromTaskAndProject(int userId, int? taskId, int? projectId)
+        public UserAssignmentResult RemoveUserFromTaskAndProject(int userId, int? taskId, int? projectId)
         {
-            if (taskId.HasValue)
-            {
-                var userTask = _dbContext.UserTasks.FirstOrDefault(ut => ut.UserId == userId && ut.TaskId == taskId);
-                if (userTask != null)
-                {
-                    _dbContext.UserTasks.Remove(userTask);
-                }
-            }
+            if (!taskId.HasValue && !projectId.HasValue)
+                return UserAssignmentResult.InvalidSelection;
+
+            if (!_dbContext.Users.Any(user => user.Id == userId))
+                return UserAssignmentResult.UserNotFound;
+
+            var assignmentResult = ResolveAssignment(
+                taskId,
+                projectId,
+                out _,
+                out _);
+            if (assignmentResult != UserAssignmentResult.Succeeded)
+                return assignmentResult;
+
+            var userTask = taskId.HasValue
+                ? _dbContext.UserTasks.FirstOrDefault(candidate =>
+                    candidate.UserId == userId
+                    && candidate.TaskId == taskId.Value)
+                : null;
+            if (taskId.HasValue && userTask == null)
+                return UserAssignmentResult.UserNotAssignedToTask;
+
+            var userProject = projectId.HasValue
+                ? _dbContext.UserProjects.FirstOrDefault(candidate =>
+                    candidate.UserId == userId
+                    && candidate.ProjectId == projectId.Value)
+                : null;
+            if (projectId.HasValue && userProject == null)
+                return UserAssignmentResult.UserNotMemberOfProject;
 
             if (projectId.HasValue)
             {
-                var userProject = _dbContext.UserProjects.FirstOrDefault(up => up.UserId == userId && up.ProjectId == projectId);
-                if (userProject != null)
-                {
-                    _dbContext.UserProjects.Remove(userProject);
-                }
+                var hasOtherTaskAssignments = _dbContext.UserTasks.Any(candidate =>
+                    candidate.UserId == userId
+                    && EF.Property<int?>(candidate.Task, "ProjectId") == projectId.Value
+                    && (!taskId.HasValue || candidate.TaskId != taskId.Value));
+                if (hasOtherTaskAssignments)
+                    return UserAssignmentResult.ProjectHasTaskAssignments;
             }
 
-            if (taskId.HasValue || projectId.HasValue)
+            if (userTask != null)
+                _dbContext.UserTasks.Remove(userTask);
+
+            if (userProject != null)
+                _dbContext.UserProjects.Remove(userProject);
+
+            return _dbContext.SaveChanges() > 0
+                ? UserAssignmentResult.Succeeded
+                : UserAssignmentResult.SaveFailed;
+        }
+
+        private UserAssignmentResult ResolveAssignment(
+            int? taskId,
+            int? projectId,
+            out EmployeeData.Models.Task task,
+            out Project project)
+        {
+            task = taskId.HasValue
+                ? _dbContext.Tasks.FirstOrDefault(candidate => candidate.Id == taskId.Value)
+                : null;
+            if (taskId.HasValue && task == null)
             {
-                _dbContext.SaveChanges();
-                return true;
+                project = null;
+                return UserAssignmentResult.TaskNotFound;
             }
-            return false;
+
+            var taskProjectId = task == null
+                ? null
+                : _dbContext.Entry(task).Property<int?>("ProjectId").CurrentValue;
+            if (task != null && !taskProjectId.HasValue)
+            {
+                project = null;
+                return UserAssignmentResult.TaskHasNoProject;
+            }
+
+            if (taskProjectId.HasValue
+                && projectId.HasValue
+                && taskProjectId.Value != projectId.Value)
+            {
+                project = null;
+                return UserAssignmentResult.TaskProjectMismatch;
+            }
+
+            var effectiveProjectId = projectId ?? taskProjectId;
+            project = effectiveProjectId.HasValue
+                ? _dbContext.Projects.FirstOrDefault(candidate =>
+                    candidate.Id == effectiveProjectId.Value)
+                : null;
+
+            return effectiveProjectId.HasValue && project == null
+                ? UserAssignmentResult.ProjectNotFound
+                : UserAssignmentResult.Succeeded;
         }
 
         public bool DeleteUser(User user)

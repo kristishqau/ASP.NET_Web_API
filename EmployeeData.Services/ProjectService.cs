@@ -160,7 +160,14 @@ namespace EmployeeData.Services
             {
                 return true;
             }
-            return _dbContext.UserProjects.Any(up => up.UserId == userId && up.ProjectId == projectId);
+            return HasProjectMembership(userId, projectId);
+        }
+
+        public bool HasProjectMembership(int userId, int projectId)
+        {
+            return _dbContext.UserProjects.Any(userProject =>
+                userProject.UserId == userId
+                && userProject.ProjectId == projectId);
         }
     }
 }

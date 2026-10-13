@@ -156,11 +156,13 @@ namespace EmployeeData.Controllers
             request.Role = role;
             var userMap = request.ToEntity();
 
-            if (!_userService.CreateUser(projectId, taskId, userMap, request.Password))
-            {
-                ModelState.AddModelError("", "Something went wrong while saving");
-                return StatusCode(500, ModelState);
-            }
+            var assignmentResult = _userService.CreateUser(
+                projectId,
+                taskId,
+                userMap,
+                request.Password);
+            if (assignmentResult != UserAssignmentResult.Succeeded)
+                return AssignmentFailure(assignmentResult, "Something went wrong while saving the user.");
 
             return CreatedAtRoute(
                 "GetUserById",
@@ -260,26 +262,19 @@ namespace EmployeeData.Controllers
         }
 
         [HttpPost("addUserToTaskAndProject")]
+        [Authorize(Roles = AdministratorRole)]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         public IActionResult AddUserToTaskAndProject([FromQuery] int userId, [FromQuery] int? taskId, [FromQuery] int? projectId)
         {
-            if (userId <= 0)
-            {
-                ModelState.AddModelError("", "Invalid userId.");
-                return BadRequest(ModelState);
-            }
+            var assignmentResult = _userService.AddUserToTaskAndProject(
+                userId,
+                taskId,
+                projectId);
+            if (assignmentResult != UserAssignmentResult.Succeeded)
+                return AssignmentFailure(assignmentResult, "Something went wrong while saving the assignment.");
 
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            if (!_userService.AddUserToTaskAndProject(userId, taskId, projectId))
-            {
-                ModelState.AddModelError("", "Something went wrong while saving");
-                return StatusCode(500, ModelState);
-            }
-
-            return Ok("Successfully added user to task and project");
+            return NoContent();
         }
 
         [HttpDelete("removeUserFromTaskAndProject")]
@@ -289,45 +284,12 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(404)]
         public IActionResult RemoveUserFromTaskAndProject([FromQuery] int userId, [FromQuery] int? taskId, [FromQuery] int? projectId)
         {
-            if (!_userService.UserExists(userId))
-            {
-                ModelState.AddModelError("", "Invalid user ID.");
-                return BadRequest(ModelState);
-            }
-
-            if (taskId.HasValue)
-            {
-                if (!_taskService.TaskExists(taskId.GetValueOrDefault()))
-                {
-                    ModelState.AddModelError("", "Invalid task ID.");
-                    return BadRequest(ModelState);
-                }
-                if (!_taskService.IsUserInTask(userId, taskId.GetValueOrDefault()))
-                {
-                    ModelState.AddModelError("", "User is not part of the specified task.");
-                    return BadRequest(ModelState);
-                }
-            }
-
-            if (projectId.HasValue)
-            {
-                if (!_projectService.ProjectExists(projectId.GetValueOrDefault()))
-                {
-                    ModelState.AddModelError("", "Invalid project ID.");
-                    return BadRequest(ModelState);
-                }
-                if (!_projectService.IsUserInProject(userId, projectId.GetValueOrDefault()))
-                {
-                    ModelState.AddModelError("", "User is not part of the specified project.");
-                    return BadRequest(ModelState);
-                }
-            }
-
-            if (!_userService.RemoveUserFromTaskAndProject(userId, taskId.GetValueOrDefault(), projectId.GetValueOrDefault()))
-            {
-                ModelState.AddModelError("", "Failed to remove user from task and project.");
-                return StatusCode(500, ModelState);
-            }
+            var assignmentResult = _userService.RemoveUserFromTaskAndProject(
+                userId,
+                taskId,
+                projectId);
+            if (assignmentResult != UserAssignmentResult.Succeeded)
+                return AssignmentFailure(assignmentResult, "Failed to remove the assignment.");
 
             return NoContent();
         }
@@ -369,6 +331,31 @@ namespace EmployeeData.Controllers
             }
 
             return NoContent();
+        }
+
+        private IActionResult AssignmentFailure(
+            UserAssignmentResult result,
+            string saveFailureMessage)
+        {
+            var message = result switch
+            {
+                UserAssignmentResult.InvalidSelection => "A taskId or projectId is required.",
+                UserAssignmentResult.UserNotFound => "The specified user does not exist.",
+                UserAssignmentResult.TaskNotFound => "The specified task does not exist.",
+                UserAssignmentResult.ProjectNotFound => "The specified project does not exist.",
+                UserAssignmentResult.TaskHasNoProject => "The task is not attached to a project.",
+                UserAssignmentResult.TaskProjectMismatch => "The task does not belong to the specified project.",
+                UserAssignmentResult.UserNotAssignedToTask => "The user is not assigned to the specified task.",
+                UserAssignmentResult.UserNotMemberOfProject => "The user is not a member of the specified project.",
+                UserAssignmentResult.ProjectHasTaskAssignments => "Remove the user's other task assignments before removing project membership.",
+                UserAssignmentResult.SaveFailed => saveFailureMessage,
+                _ => "The assignment request is invalid."
+            };
+
+            ModelState.AddModelError("", message);
+            return result == UserAssignmentResult.SaveFailed
+                ? StatusCode(500, ModelState)
+                : BadRequest(ModelState);
         }
 
         private static string GetCanonicalRole(string role)

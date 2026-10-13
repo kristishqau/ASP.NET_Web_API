@@ -14,6 +14,8 @@ namespace EmployeeData.Controllers
     [Authorize]
     public class TaskController : ControllerBase
     {
+        private const string AdministratorRole = "Administrator";
+
         private readonly ITaskService _taskService;
         private readonly IProjectService _projectService;
         private readonly IUserService _userService;
@@ -59,6 +61,16 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(400)]
         public IActionResult CreateTask([FromQuery] int projectId,[FromQuery] int userId, [FromBody] TaskDto taskCreate)
         {
+            var currentUserId = _taskService.GetCurrentUserId();
+            var userRole = _taskService.GetUserRoleById(currentUserId);
+            var canCreate = userRole == AdministratorRole
+                || (userRole == "Employee"
+                    && _projectService.HasProjectMembership(currentUserId, projectId));
+            if (!canCreate)
+            {
+                return Forbid();
+            }
+
             if (!(_userService.UserExists(userId) && _projectService.ProjectExists(projectId)))
             {
                 ModelState.AddModelError("", "Enter the corrects Id inputs for both user and project.");
@@ -81,11 +93,12 @@ namespace EmployeeData.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var userRole = _taskService.GetUserRoleById(_taskService.GetCurrentUserId());
-            if (userRole != "Administrator" && !_projectService.IsUserInProject(userId, projectId))
+            if (!_projectService.HasProjectMembership(userId, projectId))
             {
-                ModelState.AddModelError("", "User does not have access to the specified project");
-                return StatusCode(403, ModelState);
+                ModelState.AddModelError(
+                    nameof(userId),
+                    "The assignee must be a member of the specified project.");
+                return ValidationProblem(ModelState);
             }
 
             var taskMap = taskCreate.ToEntity();
@@ -106,7 +119,7 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public IActionResult UpdateTask(int userId, int taskId, [FromBody] TaskDto updatedTask)
+        public IActionResult UpdateTask(int taskId, [FromBody] TaskDto updatedTask)
         {
             if (updatedTask == null)
                 return BadRequest(ModelState);
@@ -114,35 +127,39 @@ namespace EmployeeData.Controllers
             if (taskId != updatedTask.Id)
                 return BadRequest(ModelState);
 
-            if (!_taskService.TaskExists(taskId))
-                return NotFound();
+            var currentUserId = _userService.GetCurrentUserId();
+            var userRole = _userService.GetUserRole(currentUserId);
+            if (userRole == AdministratorRole)
+            {
+                if (!_taskService.TaskExists(taskId))
+                    return NotFound();
+            }
+            else if (userRole == "Employee")
+            {
+                if (!_taskService.HasTaskAssignment(currentUserId, taskId))
+                    return Forbid();
+            }
+            else
+            {
+                return Forbid();
+            }
 
             if (!ModelState.IsValid)
                 return BadRequest();
 
-            var taskMap = updatedTask.ToEntity();
-
-            var existingTask = _dbContext.Tasks.Local.FirstOrDefault(t => t.Id == taskId);
-
-            if (existingTask != null)
+            var task = _taskService.GetTask(taskId);
+            if (task.Title == updatedTask.Title
+                && task.Description == updatedTask.Description
+                && task.IsFinished == updatedTask.IsFinished)
             {
-                taskMap = existingTask;
-            }
-            else
-            {
-                _dbContext.Attach(taskMap);
+                return NoContent();
             }
 
-            if (_userService.GetUserRole(_userService.GetCurrentUserId()) == "Employee" && _taskService.IsUserInTask(_userService.GetCurrentUserId(), taskId))
-            {
-                if (userId != _userService.GetCurrentUserId())
-                {
-                    ModelState.AddModelError("", "Employees can only update their own tasks.");
-                    return StatusCode(403, ModelState);
-                }
-            }
+            task.Title = updatedTask.Title;
+            task.Description = updatedTask.Description;
+            task.IsFinished = updatedTask.IsFinished;
 
-            if (!_taskService.UpdateTask(taskMap))
+            if (!_taskService.SaveTask())
             {
                 ModelState.AddModelError("", "Something went wrong updating User properties.");
                 return StatusCode(500, ModelState);

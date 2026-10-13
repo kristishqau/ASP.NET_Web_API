@@ -10,6 +10,7 @@ namespace EmployeeData.Services
         ICollection<Task> GetTasksByProject(int projectId);
         bool ProjectExists(int id);
         bool IsUserInProject(int userId, int projectId);
+        bool HasProjectMembership(int userId, int projectId);
         IEnumerable<Project> GetProjectsForUser(int userId);
         bool CreateProject(int userId, Project project);
         bool SaveProject();

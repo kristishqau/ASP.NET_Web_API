@@ -1,6 +1,5 @@
 ﻿using EmployeeData.Models;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,12 +50,6 @@ namespace EmployeeData.Services
             return SaveTask();
         }
 
-        public bool UpdateTask(Task task)
-        {
-            _dbContext.Update(task);
-            return SaveTask();
-        }
-
         public bool DeleteTask(Task task)
         {
             _dbContext.Remove(task);
@@ -85,14 +78,11 @@ namespace EmployeeData.Services
         {
             return _dbContext.UserTasks.Where(t => t.UserId == userId).Select(t => t.Task).ToList();
         }
-        public bool IsUserInTask(int userId, int taskId)
+        public bool HasTaskAssignment(int userId, int taskId)
         {
-            var currentUserRole = GetUserRoleById(userId);
-            if (currentUserRole == "Administrator")
-            {
-                return true;
-            }
-            return _dbContext.UserTasks.Any(up => up.UserId == userId && up.TaskId == taskId);
+            return _dbContext.UserTasks.Any(userTask =>
+                userTask.UserId == userId
+                && userTask.TaskId == taskId);
         }
     }
 }
