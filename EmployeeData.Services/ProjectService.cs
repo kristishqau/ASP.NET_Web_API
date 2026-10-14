@@ -1,6 +1,7 @@
 ﻿using EmployeeData.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 
 namespace EmployeeData.Services
@@ -97,39 +98,27 @@ namespace EmployeeData.Services
             return SaveProject();
         }
 
-        public bool DeleteProject(Project project)
+        public DeletionResult DeleteProject(int projectId)
         {
-        //    if (project.Tasks.Any(task => !task.IsFinished))
-        //    {
-        //        return false;
-        //    }
+            using var transaction = _dbContext.Database.BeginTransaction(
+                IsolationLevel.Serializable);
+            var project = _dbContext.Projects
+                .Include(candidate => candidate.Tasks)
+                .SingleOrDefault(candidate => candidate.Id == projectId);
+            if (project == null)
+                return DeletionResult.NotFound;
 
-        //    var tasksToDelete = project.Tasks.ToList();
+            if (project.Tasks.Any(task => !task.IsFinished))
+                return DeletionResult.HasUnfinishedTasks;
 
-        //    foreach (var task in tasksToDelete)
-        //    {
-        //        task.Project = null;
-        //    }
+            _dbContext.Tasks.RemoveRange(project.Tasks);
+            _dbContext.Projects.Remove(project);
 
-        //    _dbContext.Tasks.RemoveRange(tasksToDelete);
-        //    _dbContext.SaveChanges();
+            if (_dbContext.SaveChanges() <= 0)
+                return DeletionResult.SaveFailed;
 
-            _dbContext.Remove(project);
-            return SaveProject();
-        }
-
-
-        public IEnumerable<int> GetTaskIdsByProjectId(int projectId)
-        {
-            return _dbContext.Tasks
-                .Where(task => task.Project.Id == projectId)
-                .Select(task => task.Id)
-                .ToList();
-        }
-        public bool IsTaskFinished(int taskId)
-        {
-            var task = _dbContext.Tasks.Find(taskId);
-            return task != null && task.IsFinished;
+            transaction.Commit();
+            return DeletionResult.Succeeded;
         }
         public bool SaveProject()
         {

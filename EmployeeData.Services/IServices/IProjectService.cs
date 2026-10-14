@@ -15,8 +15,6 @@ namespace EmployeeData.Services
         bool CreateProject(int userId, Project project);
         bool SaveProject();
         bool UpdateProject(Project project);
-        bool DeleteProject(Project project);
-        IEnumerable<int> GetTaskIdsByProjectId(int projectId);
-        bool IsTaskFinished(int taskId);
+        DeletionResult DeleteProject(int projectId);
     }
 }

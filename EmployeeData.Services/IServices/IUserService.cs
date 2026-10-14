@@ -34,6 +34,6 @@ namespace EmployeeData.Services
         int GetCurrentUserId();
         UserAssignmentResult AddUserToTaskAndProject(int userId, int? taskId, int? projectId);
         UserAssignmentResult RemoveUserFromTaskAndProject(int userId, int? taskId, int? projectId);
-        bool DeleteUser(User user);
+        DeletionResult DeleteUser(int userId);
     }
 }

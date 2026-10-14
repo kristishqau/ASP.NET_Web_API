@@ -18,13 +18,11 @@ namespace EmployeeData.Controllers
         private readonly ITaskService _taskService;
         private readonly IProjectService _projectService;
         private readonly IUserService _userService;
-        private readonly AppDbContext _dbContext;
-        public TaskController(ITaskService taskService, IProjectService projectService, IUserService userService, AppDbContext dbContext)
+        public TaskController(ITaskService taskService, IProjectService projectService, IUserService userService)
         {
             _taskService = taskService;
             _projectService = projectService;
             _userService = userService;
-            _dbContext = dbContext;
         }
 
         [HttpGet]
@@ -173,27 +171,14 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(404)]
         public IActionResult DeleteTask(int taskId)
         {
-            if (!_taskService.TaskExists(taskId))
+            var result = _taskService.DeleteTask(taskId);
+            if (result == DeletionResult.NotFound)
             {
                 ModelState.AddModelError("", "Task not found");
                 return NotFound(ModelState);
             }
 
-            var userTasks = _dbContext.UserTasks.Where(ut => ut.TaskId == taskId).ToList();
-
-            foreach (var userTask in userTasks)
-            {
-                _dbContext.UserTasks.Remove(userTask);
-            }
-
-            _dbContext.SaveChanges();
-
-            var taskToDelete = _taskService.GetTask(taskId);
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            if (!_taskService.DeleteTask(taskToDelete))
+            if (result != DeletionResult.Succeeded)
             {
                 ModelState.AddModelError("", "Failed to delete task");
                 return StatusCode(500, ModelState);

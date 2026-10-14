@@ -158,35 +158,20 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(404)]
         public IActionResult DeleteProject(int projectId)
         {
-            if (!_projectService.ProjectExists(projectId))
+            var result = _projectService.DeleteProject(projectId);
+            if (result == DeletionResult.NotFound)
             {
                 ModelState.AddModelError("", "Project not found");
                 return NotFound(ModelState);
             }
 
-            var project = _projectService.GetProject(projectId);
-
-            if (_projectService.GetTaskIdsByProjectId(projectId).Any(taskId => !_projectService.IsTaskFinished(taskId)))
+            if (result == DeletionResult.HasUnfinishedTasks)
             {
                 ModelState.AddModelError("", "Cannot delete project with unfinished tasks.");
                 return BadRequest(ModelState);
             }
 
-            var userProjects = _dbContext.UserProjects.Where(up => up.ProjectId == projectId).ToList();
-
-            foreach (var userProject in userProjects)
-            {
-                _dbContext.UserProjects.Remove(userProject);
-            }
-
-            _dbContext.SaveChanges();
-
-            var projectToDelete = _projectService.GetProject(projectId);
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            if (!_projectService.DeleteProject(projectToDelete))
+            if (result != DeletionResult.Succeeded)
             {
                 ModelState.AddModelError("", "Failed to delete project.");
                 return StatusCode(500, ModelState);

@@ -14,7 +14,7 @@ namespace EmployeeData.Services
         bool SaveTask();
         string GetUserRoleById(int userId);
         bool HasTaskAssignment(int userId, int taskId);
-        bool DeleteTask(Task task);
+        DeletionResult DeleteTask(int taskId);
         int GetCurrentUserId();
     }
 }

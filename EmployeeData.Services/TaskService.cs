@@ -87,10 +87,16 @@ namespace EmployeeData.Services
             return SaveTask();
         }
 
-        public bool DeleteTask(Task task)
+        public DeletionResult DeleteTask(int taskId)
         {
-            _dbContext.Remove(task);
-            return SaveTask();
+            var task = _dbContext.Tasks.Find(taskId);
+            if (task == null)
+                return DeletionResult.NotFound;
+
+            _dbContext.Tasks.Remove(task);
+            return _dbContext.SaveChanges() > 0
+                ? DeletionResult.Succeeded
+                : DeletionResult.SaveFailed;
         }
 
         public bool SaveTask()

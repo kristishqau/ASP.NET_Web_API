@@ -291,10 +291,16 @@ namespace EmployeeData.Services
                 : UserAssignmentResult.Succeeded;
         }
 
-        public bool DeleteUser(User user)
+        public DeletionResult DeleteUser(int userId)
         {
-            _dbContext.Remove(user);
-            return SaveUser();
+            var user = _dbContext.Users.Find(userId);
+            if (user == null)
+                return DeletionResult.NotFound;
+
+            _dbContext.Users.Remove(user);
+            return _dbContext.SaveChanges() > 0
+                ? DeletionResult.Succeeded
+                : DeletionResult.SaveFailed;
         }
 
         public int GetCurrentUserId()

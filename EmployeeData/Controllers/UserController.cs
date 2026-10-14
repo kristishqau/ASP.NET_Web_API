@@ -302,30 +302,14 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(404)]
         public IActionResult DeleteUser(int userId)
         {
-            if (!_userService.UserExists(userId))
+            var result = _userService.DeleteUser(userId);
+            if (result == DeletionResult.NotFound)
             {
                 ModelState.AddModelError("", "User not found");
                 return NotFound(ModelState);
             }
 
-            var userTasks = _dbContext.UserTasks.Where(ut => ut.UserId == userId).ToList();
-            var userProjects = _dbContext.UserProjects.Where(up => up.UserId == userId).ToList();
-
-            foreach (var userTask in userTasks)
-            {
-                _dbContext.UserTasks.Remove(userTask);
-            }
-
-            foreach (var userProject in userProjects)
-            {
-                _dbContext.UserProjects.Remove(userProject);
-            }
-
-            _dbContext.SaveChanges();
-
-            var userToDelete = _userService.GetUser(userId);
-
-            if (!_userService.DeleteUser(userToDelete))
+            if (result != DeletionResult.Succeeded)
             {
                 ModelState.AddModelError("", "Failed to delete user");
                 return StatusCode(500, ModelState);
