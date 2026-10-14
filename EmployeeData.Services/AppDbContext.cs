@@ -14,12 +14,36 @@ namespace EmployeeData.Services
         public DbSet<UserTask> UserTasks { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<User>(user =>
+            {
+                user.HasIndex(candidate => candidate.UserName)
+                    .IsUnique();
+                user.ToTable(table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_Users_UserName_NotBlank",
+                        "TRIM([UserName]) <> ''");
+                    table.HasCheckConstraint(
+                        "CK_Users_Role",
+                        "[Role] IN ('Administrator', 'Employee')");
+                });
+            });
+
+            modelBuilder.Entity<Project>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_Projects_Name_NotBlank",
+                    "TRIM([Name]) <> ''"));
+
             modelBuilder.Entity<Task>()
                 .HasOne(task => task.Project)
                 .WithMany(project => project.Tasks)
                 .HasForeignKey(task => task.ProjectId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired();
+            modelBuilder.Entity<Task>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_Tasks_Title_NotBlank",
+                    "TRIM([Title]) <> ''"));
 
             modelBuilder.Entity<UserProject>()
                 .HasKey(up => new { up.UserId, up.ProjectId });

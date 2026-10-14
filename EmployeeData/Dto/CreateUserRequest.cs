@@ -16,6 +16,7 @@ namespace EmployeeData.Dto
         public string Password { get; set; } = string.Empty;
 
         [Required]
+        [StringLength(32)]
         public string Role { get; set; } = string.Empty;
 
         [StringLength(2048)]

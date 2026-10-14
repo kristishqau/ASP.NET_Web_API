@@ -87,10 +87,10 @@ public sealed class CurrentUserJwtValidationTests : IClassFixture<ApiWebApplicat
     }
 
     [Fact]
-    public async Task Unsupported_database_roles_fail_closed()
+    public async Task Unsupported_token_roles_fail_closed()
     {
-        var user = AddUser("Contractor");
-        var token = CreateToken(user.Id, user.UserName, user.Role);
+        var user = AddUser("Employee");
+        var token = CreateToken(user.Id, user.UserName, "Contractor");
 
         using var response = await SendAuthenticatedRequestAsync(token);
 

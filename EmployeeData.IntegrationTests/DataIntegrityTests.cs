@@ -1,6 +1,8 @@
 using EmployeeData.Models;
 using EmployeeData.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using ProjectTask = EmployeeData.Models.Task;
@@ -47,5 +49,111 @@ public sealed class DataIntegrityTests : IClassFixture<ApiWebApplicationFactory>
         });
 
         Assert.Throws<DbUpdateException>(() => dbContext.SaveChanges());
+    }
+
+    [Fact]
+    public void Domain_strings_are_bounded_and_required_where_expected()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = GetEntityType<User>(dbContext);
+        var project = GetEntityType<Project>(dbContext);
+        var task = GetEntityType<ProjectTask>(dbContext);
+        var designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        var designUser = GetEntityType<User>(designModel);
+        var designProject = GetEntityType<Project>(designModel);
+        var designTask = GetEntityType<ProjectTask>(designModel);
+
+        AssertProperty(user, nameof(User.UserName), isNullable: false, maxLength: 100);
+        AssertProperty(user, nameof(User.Role), isNullable: false, maxLength: 32);
+        AssertProperty(user, nameof(User.ProfilePictureUrl), isNullable: true, maxLength: 2048);
+        AssertProperty(project, nameof(Project.Name), isNullable: false, maxLength: 100);
+        AssertProperty(project, nameof(Project.Description), isNullable: true, maxLength: 1000);
+        AssertProperty(task, nameof(ProjectTask.Title), isNullable: false, maxLength: 200);
+        AssertProperty(task, nameof(ProjectTask.Description), isNullable: true, maxLength: 2000);
+
+        var userNameIndex = Assert.Single(
+            user.GetIndexes(),
+            index => index.Properties.Select(property => property.Name)
+                .SequenceEqual(new[] { nameof(User.UserName) }));
+        Assert.True(userNameIndex.IsUnique);
+
+        Assert.Contains(
+            designUser.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_Users_UserName_NotBlank");
+        Assert.Contains(
+            designUser.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_Users_Role");
+        Assert.Contains(
+            designProject.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_Projects_Name_NotBlank");
+        Assert.Contains(
+            designTask.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_Tasks_Title_NotBlank");
+    }
+
+    [Fact]
+    public void Duplicate_usernames_are_rejected_by_the_database()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var userName = $"duplicate-{Guid.NewGuid():N}";
+        dbContext.Users.AddRange(
+            NewUser(userName, "Employee"),
+            NewUser(userName, "Administrator"));
+
+        Assert.Throws<DbUpdateException>(() => dbContext.SaveChanges());
+    }
+
+    [Fact]
+    public void Invalid_roles_and_blank_domain_names_are_rejected_by_the_database()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            dbContext.Users.Add(NewUser($"invalid-role-{Guid.NewGuid():N}", "Contractor"));
+            Assert.Throws<DbUpdateException>(() => dbContext.SaveChanges());
+        }
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            dbContext.Projects.Add(new Project { Name = "   ", Description = "invalid" });
+            Assert.Throws<DbUpdateException>(() => dbContext.SaveChanges());
+        }
+    }
+
+    private static IEntityType GetEntityType<TEntity>(AppDbContext dbContext)
+    {
+        return Assert.IsAssignableFrom<IEntityType>(
+            dbContext.Model.FindEntityType(typeof(TEntity)));
+    }
+
+    private static IEntityType GetEntityType<TEntity>(IModel model)
+    {
+        return Assert.IsAssignableFrom<IEntityType>(
+            model.FindEntityType(typeof(TEntity)));
+    }
+
+    private static void AssertProperty(
+        IEntityType entityType,
+        string propertyName,
+        bool isNullable,
+        int maxLength)
+    {
+        var property = Assert.IsAssignableFrom<IProperty>(
+            entityType.FindProperty(propertyName));
+        Assert.Equal(isNullable, property.IsNullable);
+        Assert.Equal(maxLength, property.GetMaxLength());
+    }
+
+    private static User NewUser(string userName, string role)
+    {
+        return new User
+        {
+            UserName = userName,
+            Password = string.Empty,
+            Role = role
+        };
     }
 }
