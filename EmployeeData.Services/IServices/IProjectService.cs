@@ -14,7 +14,6 @@ namespace EmployeeData.Services
         IEnumerable<Project> GetProjectsForUser(int userId, bool isAdministrator);
         bool CreateProject(int userId, Project project);
         bool SaveProject();
-        bool UpdateProject(Project project);
         DeletionResult DeleteProject(int projectId);
     }
 }

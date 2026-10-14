@@ -5,11 +5,11 @@ namespace EmployeeData.Services
 {
     public interface ITaskService
     {
-        ICollection<Task> GetTasks(); 
         Task GetTask(int id); 
         ICollection<Task> GetTasksForUser(int userId, bool isAdministrator);
         Task GetTaskForUser(int userId, bool isAdministrator, int taskId);
         bool TaskExists(int id);
+        bool TaskTitleExists(string title, int? excludedTaskId = null);
         bool CreateTask(int userId, Task task);
         bool SaveTask();
         string GetUserRoleById(int userId);

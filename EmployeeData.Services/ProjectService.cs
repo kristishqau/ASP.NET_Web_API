@@ -92,12 +92,6 @@ namespace EmployeeData.Services
                 .ToList();
         }
 
-        public bool UpdateProject(Project project)
-        {
-            _dbContext.Update(project);
-            return SaveProject();
-        }
-
         public DeletionResult DeleteProject(int projectId)
         {
             using var transaction = _dbContext.Database.BeginTransaction(

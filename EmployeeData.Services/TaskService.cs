@@ -18,24 +18,6 @@ namespace EmployeeData.Services
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public ICollection<Task> GetTasks()
-        {
-            var userId = GetCurrentUserId();
-            var userRole = GetUserRoleById(userId);
-            if (userRole == "Administrator")
-                return _dbContext.Tasks.OrderBy(task => task.Id).ToList();
-
-            if (userRole == "Employee")
-            {
-                return _dbContext.UserTasks
-                    .Where(userTask => userTask.UserId == userId)
-                    .OrderBy(userTask => userTask.TaskId)
-                    .Select(userTask => userTask.Task)
-                    .ToList();
-            }
-
-            return new List<Task>();
-        }
         public Task GetTask(int id)
         {
             return _dbContext.Tasks.Where(t => t.Id == id).FirstOrDefault();
@@ -116,6 +98,13 @@ namespace EmployeeData.Services
         public bool TaskExists(int id)
         {
             return _dbContext.Tasks.Any(t => t.Id == id);
+        }
+        public bool TaskTitleExists(string title, int? excludedTaskId = null)
+        {
+            var normalizedTitle = title.Trim().ToUpperInvariant();
+            return _dbContext.Tasks.Any(task =>
+                (!excludedTaskId.HasValue || task.Id != excludedTaskId.Value)
+                && (task.Title ?? string.Empty).Trim().ToUpper() == normalizedTitle);
         }
         public bool HasTaskAssignment(int userId, int taskId)
         {

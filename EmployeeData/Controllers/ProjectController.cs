@@ -18,12 +18,14 @@ namespace EmployeeData.Controllers
         private const string AdministratorRole = "Administrator";
 
         private readonly IProjectService _projectService;
-        private readonly AppDbContext _dbContext;
+        private readonly IUserService _userService;
 
-        public ProjectController(IProjectService projectService, AppDbContext dbContext)
+        public ProjectController(
+            IProjectService projectService,
+            IUserService userService)
         {
             _projectService = projectService;
-            _dbContext = dbContext;
+            _userService = userService;
         }
 
         [HttpGet]
@@ -68,15 +70,32 @@ namespace EmployeeData.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Administrator")]
-        [ProducesResponseType(204)]
+        [ProducesResponseType(201, Type = typeof(ProjectDto))]
         [ProducesResponseType(400)]
-        public IActionResult CreateProject([FromQuery] int userId, [FromBody] ProjectDto projectCreate)
+        [ProducesResponseType(422)]
+        public IActionResult CreateProject(
+            [FromQuery] int userId,
+            [FromBody] ProjectRequest projectCreate)
         {
-            if (projectCreate == null)
-                return BadRequest(ModelState);
+            if (!_userService.UserExists(userId))
+            {
+                ModelState.AddModelError(nameof(userId), "The specified user does not exist.");
+                return ValidationProblem(ModelState);
+            }
+
+            projectCreate.Name = projectCreate.Name.Trim();
+            projectCreate.Description = projectCreate.Description?.Trim() ?? string.Empty;
+            if (projectCreate.Name.Length == 0)
+            {
+                ModelState.AddModelError(nameof(projectCreate.Name), "Project name cannot be blank.");
+                return ValidationProblem(ModelState);
+            }
 
             var projects = _projectService.GetProjects()
-                .Where(p => p.Name.Trim().ToUpper() == projectCreate.Name.TrimEnd().ToUpper())
+                .Where(project => string.Equals(
+                    (project.Name ?? string.Empty).Trim(),
+                    projectCreate.Name,
+                    StringComparison.OrdinalIgnoreCase))
                 .FirstOrDefault();
 
             if (projects != null)
@@ -84,9 +103,6 @@ namespace EmployeeData.Controllers
                 ModelState.AddModelError("", "Project already exists");
                 return StatusCode(422, ModelState);
             }
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
 
             var projectMap = projectCreate.ToEntity();
 
@@ -96,7 +112,10 @@ namespace EmployeeData.Controllers
                 return StatusCode(500, ModelState);
             }
 
-            return Ok("Successfully created");
+            return CreatedAtRoute(
+                "GetProjectById",
+                new { id = projectMap.Id },
+                projectMap.ToDto());
         }
 
         [HttpPut("{projectId}")]
@@ -104,36 +123,46 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public IActionResult UpdateProject(int projectId, [FromBody] ProjectDto updatedProject)
+        [ProducesResponseType(422)]
+        public IActionResult UpdateProject(
+            int projectId,
+            [FromBody] ProjectRequest updatedProject)
         {
-            if (updatedProject == null)
-                return BadRequest(ModelState);
-
-            if (projectId != updatedProject.Id)
-                return BadRequest(ModelState);
-
-            if (!_projectService.ProjectExists(projectId))
+            var project = _projectService.GetProject(projectId);
+            if (project == null)
                 return NotFound();
 
-            if (!ModelState.IsValid)
-                return BadRequest();
-
-            var projectMap = updatedProject.ToEntity();
-
-            var existingProject = _dbContext.Projects.Local.FirstOrDefault(p => p.Id == projectId);
-
-            if (existingProject != null)
+            updatedProject.Name = updatedProject.Name.Trim();
+            updatedProject.Description = updatedProject.Description?.Trim() ?? string.Empty;
+            if (updatedProject.Name.Length == 0)
             {
-                projectMap = existingProject;
-            }
-            else
-            {
-                _dbContext.Attach(projectMap);
+                ModelState.AddModelError(nameof(updatedProject.Name), "Project name cannot be blank.");
+                return ValidationProblem(ModelState);
             }
 
-            if (!_projectService.UpdateProject(projectMap))
+            if (_projectService.GetProjects().Any(project =>
+                project.Id != projectId
+                && string.Equals(
+                    (project.Name ?? string.Empty).Trim(),
+                    updatedProject.Name,
+                    StringComparison.OrdinalIgnoreCase)))
             {
-                ModelState.AddModelError("", "Something went wrong updating User properties.");
+                ModelState.AddModelError(nameof(updatedProject.Name), "Project already exists.");
+                return StatusCode(422, ModelState);
+            }
+
+            if (project.Name == updatedProject.Name
+                && project.Description == updatedProject.Description)
+            {
+                return NoContent();
+            }
+
+            project.Name = updatedProject.Name;
+            project.Description = updatedProject.Description;
+
+            if (!_projectService.SaveProject())
+            {
+                ModelState.AddModelError("", "Something went wrong updating the project.");
                 return StatusCode(500, ModelState);
             }
 

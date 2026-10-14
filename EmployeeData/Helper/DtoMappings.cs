@@ -13,9 +13,8 @@ namespace EmployeeData.Helper
             Description = project.Description
         };
 
-        public static Project ToEntity(this ProjectDto project) => new()
+        public static Project ToEntity(this ProjectRequest project) => new()
         {
-            Id = project.Id,
             Name = project.Name,
             Description = project.Description
         };
@@ -28,9 +27,8 @@ namespace EmployeeData.Helper
             IsFinished = task.IsFinished
         };
 
-        public static ProjectTask ToEntity(this TaskDto task) => new()
+        public static ProjectTask ToEntity(this TaskRequest task) => new()
         {
-            Id = task.Id,
             Title = task.Title,
             Description = task.Description,
             IsFinished = task.IsFinished

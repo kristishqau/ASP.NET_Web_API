@@ -53,9 +53,13 @@ namespace EmployeeData.Controllers
         }
 
         [HttpPost]
-        [ProducesResponseType(204)]
+        [ProducesResponseType(201, Type = typeof(TaskDto))]
         [ProducesResponseType(400)]
-        public IActionResult CreateTask([FromQuery] int projectId,[FromQuery] int userId, [FromBody] TaskDto taskCreate)
+        [ProducesResponseType(422)]
+        public IActionResult CreateTask(
+            [FromQuery] int projectId,
+            [FromQuery] int userId,
+            [FromBody] TaskRequest taskCreate)
         {
             var currentUserId = _taskService.GetCurrentUserId();
             var userRole = _taskService.GetUserRoleById(currentUserId);
@@ -73,21 +77,19 @@ namespace EmployeeData.Controllers
                 return StatusCode(422, ModelState);
             }
 
-            if (taskCreate == null)
-                return BadRequest(ModelState);
+            taskCreate.Title = taskCreate.Title.Trim();
+            taskCreate.Description = taskCreate.Description?.Trim() ?? string.Empty;
+            if (taskCreate.Title.Length == 0)
+            {
+                ModelState.AddModelError(nameof(taskCreate.Title), "Task title cannot be blank.");
+                return ValidationProblem(ModelState);
+            }
 
-            var existingTask = _taskService.GetTasks()
-                .Where(p => p.Title.Trim().ToUpper() == taskCreate.Title.TrimEnd().ToUpper())
-                .FirstOrDefault();
-
-            if (existingTask != null)
+            if (_taskService.TaskTitleExists(taskCreate.Title))
             {
                 ModelState.AddModelError("", "Task already exists");
                 return StatusCode(422, ModelState);
             }
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
 
             if (!_projectService.HasProjectMembership(userId, projectId))
             {
@@ -108,21 +110,21 @@ namespace EmployeeData.Controllers
                 return StatusCode(500, ModelState);
             }
 
-            return Ok("Successfully created");
+            return CreatedAtRoute(
+                "GetTaskById",
+                new { id = taskMap.Id },
+                taskMap.ToDto());
         }
 
         [HttpPut("{taskId}")]
         [ProducesResponseType(400)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public IActionResult UpdateTask(int taskId, [FromBody] TaskDto updatedTask)
+        [ProducesResponseType(422)]
+        public IActionResult UpdateTask(
+            int taskId,
+            [FromBody] TaskRequest updatedTask)
         {
-            if (updatedTask == null)
-                return BadRequest(ModelState);
-
-            if (taskId != updatedTask.Id)
-                return BadRequest(ModelState);
-
             var currentUserId = _userService.GetCurrentUserId();
             var userRole = _userService.GetUserRole(currentUserId);
             if (userRole == AdministratorRole)
@@ -140,8 +142,19 @@ namespace EmployeeData.Controllers
                 return Forbid();
             }
 
-            if (!ModelState.IsValid)
-                return BadRequest();
+            updatedTask.Title = updatedTask.Title.Trim();
+            updatedTask.Description = updatedTask.Description?.Trim() ?? string.Empty;
+            if (updatedTask.Title.Length == 0)
+            {
+                ModelState.AddModelError(nameof(updatedTask.Title), "Task title cannot be blank.");
+                return ValidationProblem(ModelState);
+            }
+
+            if (_taskService.TaskTitleExists(updatedTask.Title, taskId))
+            {
+                ModelState.AddModelError(nameof(updatedTask.Title), "Task already exists.");
+                return StatusCode(422, ModelState);
+            }
 
             var task = _taskService.GetTask(taskId);
             if (task.Title == updatedTask.Title
