@@ -168,7 +168,7 @@ public sealed class WriteContractValidationTests : IClassFixture<ApiWebApplicati
                 task.Title,
                 task.Description,
                 task.IsFinished,
-                ProjectId = EF.Property<int?>(task, "ProjectId")
+                task.ProjectId
             })
             .Single();
         Assert.Equal(updatedTitle, state.Title);

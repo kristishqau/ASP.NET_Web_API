@@ -84,15 +84,17 @@ public sealed class ReadAuthorizationTests : IClassFixture<ApiWebApplicationFact
         var tasks = await listResponse.Content.ReadFromJsonAsync<List<TaskDto>>(
             TestContext.Current.CancellationToken);
         Assert.Contains(tasks!, task => task.Id == scenario.TeamTaskId);
-        Assert.Contains(tasks!, task => task.Id == scenario.OrphanTaskId);
+        Assert.Contains(tasks!, task => task.Id == scenario.DirectlyAssignedTaskId);
         Assert.DoesNotContain(tasks!, task => task.Id == scenario.PrivateTaskId);
 
         using var teamResponse = await GetAsync($"/api/Task/{scenario.TeamTaskId}", token);
-        using var orphanResponse = await GetAsync($"/api/Task/{scenario.OrphanTaskId}", token);
+        using var directAssignmentResponse = await GetAsync(
+            $"/api/Task/{scenario.DirectlyAssignedTaskId}",
+            token);
         using var hiddenResponse = await GetAsync($"/api/Task/{scenario.PrivateTaskId}", token);
         using var missingResponse = await GetAsync($"/api/Task/{int.MaxValue}", token);
         Assert.Equal(HttpStatusCode.OK, teamResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, orphanResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, directAssignmentResponse.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, hiddenResponse.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, missingResponse.StatusCode);
     }
@@ -192,19 +194,18 @@ public sealed class ReadAuthorizationTests : IClassFixture<ApiWebApplicationFact
             Tasks = new List<ProjectTask> { teamTask }
         };
         var privateTask = NewTask($"private-{suffix}");
+        var directlyAssignedTask = NewTask($"direct-{suffix}");
         var privateProject = new Project
         {
             Name = $"private-{suffix}",
             Description = "Not visible to the employee.",
-            Tasks = new List<ProjectTask> { privateTask }
+            Tasks = new List<ProjectTask> { privateTask, directlyAssignedTask }
         };
         var emptyProject = new Project
         {
             Name = $"empty-{suffix}",
             Description = "Visible project without tasks."
         };
-        var orphanTask = NewTask($"orphan-{suffix}");
-
         dbContext.UserProjects.AddRange(
             new UserProject { User = employee, Project = memberProject },
             new UserProject { User = teammate, Project = memberProject },
@@ -213,7 +214,7 @@ public sealed class ReadAuthorizationTests : IClassFixture<ApiWebApplicationFact
         dbContext.UserTasks.AddRange(
             new UserTask { User = teammate, Task = teamTask },
             new UserTask { User = teammate, Task = privateTask },
-            new UserTask { User = employee, Task = orphanTask });
+            new UserTask { User = employee, Task = directlyAssignedTask });
         dbContext.SaveChanges();
 
         return new ReadScenario(
@@ -226,7 +227,7 @@ public sealed class ReadAuthorizationTests : IClassFixture<ApiWebApplicationFact
             emptyProject.Id,
             teamTask.Id,
             privateTask.Id,
-            orphanTask.Id);
+            directlyAssignedTask.Id);
     }
 
     private static ProjectTask NewTask(string title)
@@ -272,5 +273,5 @@ public sealed class ReadAuthorizationTests : IClassFixture<ApiWebApplicationFact
         int EmptyProjectId,
         int TeamTaskId,
         int PrivateTaskId,
-        int OrphanTaskId);
+        int DirectlyAssignedTaskId);
 }

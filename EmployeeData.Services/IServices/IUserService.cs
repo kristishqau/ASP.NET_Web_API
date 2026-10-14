@@ -11,7 +11,6 @@ namespace EmployeeData.Services
         UserNotFound,
         TaskNotFound,
         ProjectNotFound,
-        TaskHasNoProject,
         TaskProjectMismatch,
         UserNotAssignedToTask,
         UserNotMemberOfProject,

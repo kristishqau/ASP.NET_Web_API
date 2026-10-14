@@ -144,7 +144,8 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
         {
             Title = "thirdtask",
             Description = "desc",
-            IsFinished = false
+            IsFinished = false,
+            Project = project
         };
 
         dbContext.UserProjects.Add(new UserProject

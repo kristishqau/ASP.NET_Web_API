@@ -32,7 +32,8 @@ namespace EmployeeData.Services
                     Id = task.Id,
                     Title = task.Title,
                     Description = task.Description,
-                    IsFinished = task.IsFinished
+                    IsFinished = task.IsFinished,
+                    ProjectId = task.ProjectId
                 })
                 .ToList();
         }
@@ -46,7 +47,8 @@ namespace EmployeeData.Services
                     Id = task.Id,
                     Title = task.Title,
                     Description = task.Description,
-                    IsFinished = task.IsFinished
+                    IsFinished = task.IsFinished,
+                    ProjectId = task.ProjectId
                 })
                 .SingleOrDefault();
         }

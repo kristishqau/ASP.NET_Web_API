@@ -231,7 +231,7 @@ namespace EmployeeData.Services
             {
                 var hasOtherTaskAssignments = _dbContext.UserTasks.Any(candidate =>
                     candidate.UserId == userId
-                    && EF.Property<int?>(candidate.Task, "ProjectId") == projectId.Value
+                    && candidate.Task.ProjectId == projectId.Value
                     && (!taskId.HasValue || candidate.TaskId != taskId.Value));
                 if (hasOtherTaskAssignments)
                     return UserAssignmentResult.ProjectHasTaskAssignments;
@@ -264,13 +264,8 @@ namespace EmployeeData.Services
             }
 
             var taskProjectId = task == null
-                ? null
-                : _dbContext.Entry(task).Property<int?>("ProjectId").CurrentValue;
-            if (task != null && !taskProjectId.HasValue)
-            {
-                project = null;
-                return UserAssignmentResult.TaskHasNoProject;
-            }
+                ? (int?)null
+                : task.ProjectId;
 
             if (taskProjectId.HasValue
                 && projectId.HasValue

@@ -530,7 +530,7 @@ public sealed class WriteAuthorizationTests : IClassFixture<ApiWebApplicationFac
                 task.Title,
                 task.Description,
                 task.IsFinished,
-                EF.Property<int?>(task, "ProjectId")))
+                task.ProjectId))
             .Single();
     }
 
@@ -615,5 +615,5 @@ public sealed class WriteAuthorizationTests : IClassFixture<ApiWebApplicationFac
         string Title,
         string Description,
         bool IsFinished,
-        int? ProjectId);
+        int ProjectId);
 }

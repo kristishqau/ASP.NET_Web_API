@@ -11,6 +11,8 @@ namespace EmployeeData.Models
         public string Title { get; set; }
         public string Description { get; set; }
         public bool IsFinished { get; set; }
+        public int ProjectId { get; set; }
+        [Required]
         public Project Project { get; set; }
         public ICollection<UserTask> UserTasks { get; set; }
     }

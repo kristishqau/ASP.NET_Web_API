@@ -14,6 +14,12 @@ namespace EmployeeData.Services
         public DbSet<UserTask> UserTasks { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Task>()
+                .HasOne(task => task.Project)
+                .WithMany(project => project.Tasks)
+                .HasForeignKey(task => task.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
 
             modelBuilder.Entity<UserProject>()
                 .HasKey(up => new { up.UserId, up.ProjectId });

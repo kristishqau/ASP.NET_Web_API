@@ -50,14 +50,15 @@ namespace EmployeeData.Services
 
             return _dbContext.Tasks
                 .AsNoTracking()
-                .Where(task => task.Project.Id == projectId)
+                .Where(task => task.ProjectId == projectId)
                 .OrderBy(task => task.Id)
                 .Select(task => new Task
                 {
                     Id = task.Id,
                     Title = task.Title,
                     Description = task.Description,
-                    IsFinished = task.IsFinished
+                    IsFinished = task.IsFinished,
+                    ProjectId = task.ProjectId
                 })
                 .ToList();
         }

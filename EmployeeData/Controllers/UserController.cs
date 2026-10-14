@@ -328,7 +328,6 @@ namespace EmployeeData.Controllers
                 UserAssignmentResult.UserNotFound => "The specified user does not exist.",
                 UserAssignmentResult.TaskNotFound => "The specified task does not exist.",
                 UserAssignmentResult.ProjectNotFound => "The specified project does not exist.",
-                UserAssignmentResult.TaskHasNoProject => "The task is not attached to a project.",
                 UserAssignmentResult.TaskProjectMismatch => "The task does not belong to the specified project.",
                 UserAssignmentResult.UserNotAssignedToTask => "The user is not assigned to the specified task.",
                 UserAssignmentResult.UserNotMemberOfProject => "The user is not a member of the specified project.",
