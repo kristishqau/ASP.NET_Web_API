@@ -23,6 +23,7 @@ namespace EmployeeData.Security
 
             services.AddSingleton(TimeProvider.System);
             services.AddScoped<IJwtTokenService, JwtTokenService>();
+            services.AddScoped<CurrentUserJwtBearerEvents>();
 
             services.AddAuthentication(options =>
             {
@@ -38,6 +39,7 @@ namespace EmployeeData.Security
 
                     bearerOptions.IncludeErrorDetails = false;
                     bearerOptions.MapInboundClaims = false;
+                    bearerOptions.EventsType = typeof(CurrentUserJwtBearerEvents);
                     bearerOptions.TokenValidationParameters = new TokenValidationParameters
                     {
                         ClockSkew = TimeSpan.FromSeconds(30),

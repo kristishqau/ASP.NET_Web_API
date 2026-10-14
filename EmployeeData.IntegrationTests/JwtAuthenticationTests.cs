@@ -181,8 +181,9 @@ public sealed class JwtAuthenticationTests : IClassFixture<ApiWebApplicationFact
             audience: audience,
             claims: new[]
             {
+                new Claim(JwtRegisteredClaimNames.Sub, "1"),
                 new Claim(ClaimTypes.NameIdentifier, "1"),
-                new Claim(ClaimTypes.Name, "admin"),
+                new Claim(ClaimTypes.Name, ApiWebApplicationFactory.AdministratorUserName),
                 new Claim(ClaimTypes.Role, "Administrator")
             },
             notBefore: notBefore,
