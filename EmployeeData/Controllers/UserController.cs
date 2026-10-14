@@ -237,9 +237,6 @@ namespace EmployeeData.Controllers
             int userId,
             [FromBody] SetUserRoleRequest request)
         {
-            if (!_userService.UserExists(userId))
-                return NotFound();
-
             var role = GetCanonicalRole(request.Role);
             if (role == null)
             {
@@ -247,13 +244,19 @@ namespace EmployeeData.Controllers
                 return ValidationProblem(ModelState);
             }
 
-            var user = _userService.GetUser(userId);
-            if (user.Role == role)
-                return NoContent();
+            var result = _userService.SetUserRole(userId, role);
+            if (result == UserChangeResult.NotFound)
+                return NotFound();
 
-            user.Role = role;
+            if (result == UserChangeResult.LastAdministrator)
+            {
+                ModelState.AddModelError(
+                    nameof(request.Role),
+                    "The last administrator cannot be demoted.");
+                return BadRequest(ModelState);
+            }
 
-            if (!_userService.SaveUser())
+            if (result == UserChangeResult.SaveFailed)
             {
                 ModelState.AddModelError("", "Something went wrong updating the user role.");
                 return StatusCode(500, ModelState);
@@ -303,13 +306,19 @@ namespace EmployeeData.Controllers
         public IActionResult DeleteUser(int userId)
         {
             var result = _userService.DeleteUser(userId);
-            if (result == DeletionResult.NotFound)
+            if (result == UserChangeResult.NotFound)
             {
                 ModelState.AddModelError("", "User not found");
                 return NotFound(ModelState);
             }
 
-            if (result != DeletionResult.Succeeded)
+            if (result == UserChangeResult.LastAdministrator)
+            {
+                ModelState.AddModelError("", "The last administrator cannot be deleted.");
+                return BadRequest(ModelState);
+            }
+
+            if (result != UserChangeResult.Succeeded)
             {
                 ModelState.AddModelError("", "Failed to delete user");
                 return StatusCode(500, ModelState);

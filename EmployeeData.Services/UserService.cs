@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Security.Claims;
@@ -286,16 +287,56 @@ namespace EmployeeData.Services
                 : UserAssignmentResult.Succeeded;
         }
 
-        public DeletionResult DeleteUser(int userId)
+        public UserChangeResult SetUserRole(int userId, string role)
         {
-            var user = _dbContext.Users.Find(userId);
+            using var transaction = _dbContext.Database.BeginTransaction(
+                IsolationLevel.Serializable);
+            var user = _dbContext.Users.SingleOrDefault(candidate => candidate.Id == userId);
             if (user == null)
-                return DeletionResult.NotFound;
+                return UserChangeResult.NotFound;
+
+            if (user.Role == role)
+                return UserChangeResult.NoChange;
+
+            if (user.Role == "Administrator"
+                && role != "Administrator"
+                && !_dbContext.Users.Any(candidate =>
+                    candidate.Role == "Administrator"
+                    && candidate.Id != userId))
+            {
+                return UserChangeResult.LastAdministrator;
+            }
+
+            user.Role = role;
+            if (_dbContext.SaveChanges() <= 0)
+                return UserChangeResult.SaveFailed;
+
+            transaction.Commit();
+            return UserChangeResult.Succeeded;
+        }
+
+        public UserChangeResult DeleteUser(int userId)
+        {
+            using var transaction = _dbContext.Database.BeginTransaction(
+                IsolationLevel.Serializable);
+            var user = _dbContext.Users.SingleOrDefault(candidate => candidate.Id == userId);
+            if (user == null)
+                return UserChangeResult.NotFound;
+
+            if (user.Role == "Administrator"
+                && !_dbContext.Users.Any(candidate =>
+                    candidate.Role == "Administrator"
+                    && candidate.Id != userId))
+            {
+                return UserChangeResult.LastAdministrator;
+            }
 
             _dbContext.Users.Remove(user);
-            return _dbContext.SaveChanges() > 0
-                ? DeletionResult.Succeeded
-                : DeletionResult.SaveFailed;
+            if (_dbContext.SaveChanges() <= 0)
+                return UserChangeResult.SaveFailed;
+
+            transaction.Commit();
+            return UserChangeResult.Succeeded;
         }
 
         public int GetCurrentUserId()

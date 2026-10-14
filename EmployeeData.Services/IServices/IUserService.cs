@@ -18,6 +18,15 @@ namespace EmployeeData.Services
         SaveFailed
     }
 
+    public enum UserChangeResult
+    {
+        Succeeded,
+        NoChange,
+        NotFound,
+        LastAdministrator,
+        SaveFailed
+    }
+
     public interface IUserService
     {
         ICollection<User> GetUsers();
@@ -31,8 +40,9 @@ namespace EmployeeData.Services
         string Authenticate(string username, string password);
         string GetUserRole(int userId);
         int GetCurrentUserId();
+        UserChangeResult SetUserRole(int userId, string role);
         UserAssignmentResult AddUserToTaskAndProject(int userId, int? taskId, int? projectId);
         UserAssignmentResult RemoveUserFromTaskAndProject(int userId, int? taskId, int? projectId);
-        DeletionResult DeleteUser(int userId);
+        UserChangeResult DeleteUser(int userId);
     }
 }
