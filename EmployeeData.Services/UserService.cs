@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -42,13 +43,66 @@ namespace EmployeeData.Services
         {
             return _dbContext.Users.Where(u => u.Id == userId).FirstOrDefault();
         }
-        public ICollection<User> GetUsersOfATask(int taskId)
+
+        public User GetUserForUser(
+            int currentUserId,
+            bool isAdministrator,
+            int userId)
         {
-            return _dbContext.UserTasks.Where(u => u.Task.Id == taskId).Select(u => u.User).ToList();
+            return _dbContext.Users
+                .AsNoTracking()
+                .Where(user => user.Id == userId)
+                .Where(user => isAdministrator || user.Id == currentUserId)
+                .Select(PublicUser())
+                .SingleOrDefault();
         }
-        public ICollection<User> GetUsersOfAProject(int projectId)
+
+        public ICollection<User> GetUsersOfATaskForUser(
+            int currentUserId,
+            bool isAdministrator,
+            int taskId)
         {
-            return _dbContext.UserProjects.Where(p => p.Project.Id == projectId).Select(u => u.User).ToList();
+            var visibleTaskExists = _dbContext.Tasks
+                .AsNoTracking()
+                .Where(task => task.Id == taskId)
+                .Any(task => isAdministrator
+                    || task.UserTasks.Any(userTask =>
+                        userTask.UserId == currentUserId)
+                    || task.Project.UserProjects.Any(userProject =>
+                        userProject.UserId == currentUserId));
+            if (!visibleTaskExists)
+                return null;
+
+            return _dbContext.UserTasks
+                .AsNoTracking()
+                .Where(userTask => userTask.TaskId == taskId)
+                .OrderBy(userTask => userTask.UserId)
+                .Select(userTask => userTask.User)
+                .Select(PublicUser())
+                .ToList();
+        }
+
+        public ICollection<User> GetUsersOfAProjectForUser(
+            int currentUserId,
+            bool isAdministrator,
+            int projectId)
+        {
+            var visibleProjectExists = _dbContext.Projects
+                .AsNoTracking()
+                .Where(project => project.Id == projectId)
+                .Any(project => isAdministrator
+                    || project.UserProjects.Any(userProject =>
+                        userProject.UserId == currentUserId));
+            if (!visibleProjectExists)
+                return null;
+
+            return _dbContext.UserProjects
+                .AsNoTracking()
+                .Where(userProject => userProject.ProjectId == projectId)
+                .OrderBy(userProject => userProject.UserId)
+                .Select(userProject => userProject.User)
+                .Select(PublicUser())
+                .ToList();
         }
 
         public UserAssignmentResult CreateUser(int? projectId, int? taskId, User user, string password)
@@ -348,6 +402,17 @@ namespace EmployeeData.Services
             }
 
             return null;
+        }
+
+        private static Expression<Func<User, User>> PublicUser()
+        {
+            return user => new User
+            {
+                Id = user.Id,
+                UserName = user.UserName,
+                Role = user.Role,
+                ProfilePictureUrl = user.ProfilePictureUrl
+            };
         }
 
         private static bool LegacyPasswordMatches(string storedPassword, string providedPassword)

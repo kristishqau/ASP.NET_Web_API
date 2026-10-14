@@ -1,6 +1,5 @@
 ﻿using EmployeeData.Helper;
 using EmployeeData.Dto;
-using EmployeeData.Models;
 using EmployeeData.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +15,8 @@ namespace EmployeeData.Controllers
     [Authorize]
     public class ProjectController : ControllerBase
     {
+        private const string AdministratorRole = "Administrator";
+
         private readonly IProjectService _projectService;
         private readonly AppDbContext _dbContext;
 
@@ -26,43 +27,42 @@ namespace EmployeeData.Controllers
         }
 
         [HttpGet]
-        [ProducesResponseType(200, Type = typeof(IEnumerable<Project>))]
+        [ProducesResponseType(200, Type = typeof(IEnumerable<ProjectDto>))]
         public IActionResult GetProjects()
         {
-            var projects = _projectService.GetProjects().Select(project => project.ToDto()).ToList();
-
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            var projects = _projectService
+                .GetProjectsForUser(GetCurrentUserId(), User.IsInRole(AdministratorRole))
+                .Select(project => project.ToDto())
+                .ToList();
             return Ok(projects);
         }
         [HttpGet("{id}", Name = "GetProjectById")]
-        [ProducesResponseType(200, Type = typeof(Project))]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(200, Type = typeof(ProjectDto))]
+        [ProducesResponseType(404)]
         public IActionResult GetProject(int id)
         {
-            if (!_projectService.ProjectExists(id))
+            var project = _projectService.GetProjectForUser(
+                GetCurrentUserId(),
+                User.IsInRole(AdministratorRole),
+                id);
+            if (project == null)
                 return NotFound();
 
-            var project = _projectService.GetProject(id).ToDto();
-            
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            return Ok(project);
+            return Ok(project.ToDto());
         }
         [HttpGet("{projectId}/tasks", Name = "GetTasksByProject")]
-        [ProducesResponseType(200, Type = typeof(IEnumerable<Task>))]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(200, Type = typeof(IEnumerable<TaskDto>))]
+        [ProducesResponseType(404)]
         public IActionResult GetTasksByProject(int projectId)
         {
-            var projectTasks = _projectService.GetTasksByProject(projectId);
-            var tasks = projectTasks?.Select(task => task.ToDto()).ToList();
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            var projectTasks = _projectService.GetTasksByProjectForUser(
+                GetCurrentUserId(),
+                User.IsInRole(AdministratorRole),
+                projectId);
+            if (projectTasks == null)
+                return NotFound();
+
+            var tasks = projectTasks.Select(task => task.ToDto()).ToList();
             return Ok(tasks);
         }
 
@@ -143,19 +143,12 @@ namespace EmployeeData.Controllers
         [HttpGet("GetProjectsForUser")]
         public IActionResult GetProjectsForUser()
         {
-            try
-            {
-                var userId = Convert.ToInt32(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-                var projects = _projectService.GetProjectsForUser(userId)
-                    .Select(project => project.ToDto())
-                    .ToList();
+            var projects = _projectService
+                .GetProjectsForUser(GetCurrentUserId(), User.IsInRole(AdministratorRole))
+                .Select(project => project.ToDto())
+                .ToList();
 
-                return Ok(projects);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return Ok(projects);
         }
 
         [HttpDelete("{projectId}")]
@@ -200,6 +193,12 @@ namespace EmployeeData.Controllers
             }
 
             return NoContent();
+        }
+
+        private int GetCurrentUserId()
+        {
+            return Convert.ToInt32(
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
         }
     }
 }

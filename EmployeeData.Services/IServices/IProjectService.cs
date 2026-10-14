@@ -7,11 +7,11 @@ namespace EmployeeData.Services
     {
         ICollection<Project> GetProjects(); 
         Project GetProject(int id); 
-        ICollection<Task> GetTasksByProject(int projectId);
+        Project GetProjectForUser(int userId, bool isAdministrator, int projectId);
+        ICollection<Task> GetTasksByProjectForUser(int userId, bool isAdministrator, int projectId);
         bool ProjectExists(int id);
-        bool IsUserInProject(int userId, int projectId);
         bool HasProjectMembership(int userId, int projectId);
-        IEnumerable<Project> GetProjectsForUser(int userId);
+        IEnumerable<Project> GetProjectsForUser(int userId, bool isAdministrator);
         bool CreateProject(int userId, Project project);
         bool SaveProject();
         bool UpdateProject(Project project);

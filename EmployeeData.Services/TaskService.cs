@@ -1,5 +1,6 @@
 ﻿using EmployeeData.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,15 +22,51 @@ namespace EmployeeData.Services
         {
             var userId = GetCurrentUserId();
             var userRole = GetUserRoleById(userId);
+            if (userRole == "Administrator")
+                return _dbContext.Tasks.OrderBy(task => task.Id).ToList();
+
             if (userRole == "Employee")
             {
-                return GetTasksByUser(userId);
+                return _dbContext.UserTasks
+                    .Where(userTask => userTask.UserId == userId)
+                    .OrderBy(userTask => userTask.TaskId)
+                    .Select(userTask => userTask.Task)
+                    .ToList();
             }
-            return _dbContext.Tasks.ToList();
+
+            return new List<Task>();
         }
         public Task GetTask(int id)
         {
             return _dbContext.Tasks.Where(t => t.Id == id).FirstOrDefault();
+        }
+
+        public ICollection<Task> GetTasksForUser(int userId, bool isAdministrator)
+        {
+            return VisibleTasks(userId, isAdministrator)
+                .OrderBy(task => task.Id)
+                .Select(task => new Task
+                {
+                    Id = task.Id,
+                    Title = task.Title,
+                    Description = task.Description,
+                    IsFinished = task.IsFinished
+                })
+                .ToList();
+        }
+
+        public Task GetTaskForUser(int userId, bool isAdministrator, int taskId)
+        {
+            return VisibleTasks(userId, isAdministrator)
+                .Where(task => task.Id == taskId)
+                .Select(task => new Task
+                {
+                    Id = task.Id,
+                    Title = task.Title,
+                    Description = task.Description,
+                    IsFinished = task.IsFinished
+                })
+                .SingleOrDefault();
         }
 
         public bool CreateTask(int userId, Task task)
@@ -74,15 +111,22 @@ namespace EmployeeData.Services
         {
             return _dbContext.Tasks.Any(t => t.Id == id);
         }
-        public ICollection<Task> GetTasksByUser(int userId)
-        {
-            return _dbContext.UserTasks.Where(t => t.UserId == userId).Select(t => t.Task).ToList();
-        }
         public bool HasTaskAssignment(int userId, int taskId)
         {
             return _dbContext.UserTasks.Any(userTask =>
                 userTask.UserId == userId
                 && userTask.TaskId == taskId);
+        }
+
+        private IQueryable<Task> VisibleTasks(int userId, bool isAdministrator)
+        {
+            var tasks = _dbContext.Tasks.AsNoTracking();
+            return isAdministrator
+                ? tasks
+                : tasks.Where(task =>
+                    task.UserTasks.Any(userTask => userTask.UserId == userId)
+                    || task.Project.UserProjects.Any(userProject =>
+                        userProject.UserId == userId));
         }
     }
 }

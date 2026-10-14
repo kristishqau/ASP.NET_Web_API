@@ -23,8 +23,9 @@ namespace EmployeeData.Services
     {
         ICollection<User> GetUsers();
         User GetUser(int userId);
-        ICollection<User> GetUsersOfATask(int taskId);
-        ICollection<User> GetUsersOfAProject(int projectId);
+        User GetUserForUser(int currentUserId, bool isAdministrator, int userId);
+        ICollection<User> GetUsersOfATaskForUser(int currentUserId, bool isAdministrator, int taskId);
+        ICollection<User> GetUsersOfAProjectForUser(int currentUserId, bool isAdministrator, int projectId);
         bool UserExists(int id);
         UserAssignmentResult CreateUser(int? projectId, int? taskId, User user, string password);
         bool SaveUser();

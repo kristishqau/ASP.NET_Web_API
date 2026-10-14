@@ -1,6 +1,5 @@
 ﻿using EmployeeData.Helper;
 using EmployeeData.Dto;
-using EmployeeData.Models;
 using EmployeeData.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,15 +18,11 @@ namespace EmployeeData.Controllers
         private const string EmployeeRole = "Employee";
 
         private readonly IUserService _userService;
-        private readonly ITaskService _taskService;
-        private readonly IProjectService _projectService;
         private readonly AppDbContext _dbContext;
 
-        public UserController(IUserService userService, ITaskService taskService, IProjectService projectService, AppDbContext dbContext)
+        public UserController(IUserService userService, AppDbContext dbContext)
         {
             _userService = userService;
-            _taskService = taskService;
-            _projectService = projectService;
             _dbContext = dbContext;
         }
 
@@ -73,12 +68,14 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(404)]
         public IActionResult GetUser(int id)
         {
-            if (!_userService.UserExists(id))
+            var user = _userService.GetUserForUser(
+                _userService.GetCurrentUserId(),
+                User.IsInRole(AdministratorRole),
+                id);
+            if (user == null)
                 return NotFound();
 
-            var user = _userService.GetUser(id).ToResponse();
-
-            return Ok(user);
+            return Ok(user.ToResponse());
         }
 
         [HttpGet("tasks/{taskId}/users")]
@@ -86,16 +83,18 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(404)]
         public IActionResult GetUsersOfATask(int taskId)
         {
-            if (!_taskService.TaskExists(taskId))
-            {
+            var users = _userService.GetUsersOfATaskForUser(
+                _userService.GetCurrentUserId(),
+                User.IsInRole(AdministratorRole),
+                taskId);
+            if (users == null)
                 return NotFound();
-            }
 
-            var user = _userService.GetUsersOfATask(taskId)
+            var response = users
                 .Select(taskUser => taskUser.ToResponse())
                 .ToList();
 
-            return Ok(user);
+            return Ok(response);
         }
 
         [HttpGet("projects/{projectId}/users")]
@@ -103,16 +102,18 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(404)]
         public IActionResult GetUsersOfAProject(int projectId)
         {
-            if (!_projectService.ProjectExists(projectId))
-            {
+            var users = _userService.GetUsersOfAProjectForUser(
+                _userService.GetCurrentUserId(),
+                User.IsInRole(AdministratorRole),
+                projectId);
+            if (users == null)
                 return NotFound();
-            }
 
-            var user = _userService.GetUsersOfAProject(projectId)
+            var response = users
                 .Select(projectUser => projectUser.ToResponse())
                 .ToList();
 
-            return Ok(user);
+            return Ok(response);
         }
 
         [HttpPost]

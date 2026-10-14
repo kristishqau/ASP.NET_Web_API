@@ -1,22 +1,16 @@
 ﻿using EmployeeData.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
 
 namespace EmployeeData.Services
 {
     public class ProjectService : IProjectService
     {
         private readonly AppDbContext _dbContext;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public ProjectService(AppDbContext dbContext,IHttpContextAccessor httpContextAccessor)
+        public ProjectService(AppDbContext dbContext)
         {
             _dbContext = dbContext;
-            _httpContextAccessor = httpContextAccessor;
         }
 
         public ICollection<Project> GetProjects()
@@ -27,15 +21,44 @@ namespace EmployeeData.Services
         {
             return _dbContext.Projects.Where(p => p.Id == id).FirstOrDefault();
         }
-        public ICollection<Task> GetTasksByProject(int projectId)
+        public Project GetProjectForUser(
+            int userId,
+            bool isAdministrator,
+            int projectId)
         {
-            var userId = GetCurrentUserId();
-            var canAccessTasks = IsUserInProject(userId, projectId);
-            if (!canAccessTasks)
-            {
-                return null; 
-            }
-            return _dbContext.Projects.Where(p => p.Id == projectId).SelectMany(t=>t.Tasks).ToList();
+            return VisibleProjects(userId, isAdministrator)
+                .Where(project => project.Id == projectId)
+                .Select(project => new Project
+                {
+                    Id = project.Id,
+                    Name = project.Name,
+                    Description = project.Description
+                })
+                .SingleOrDefault();
+        }
+
+        public ICollection<Task> GetTasksByProjectForUser(
+            int userId,
+            bool isAdministrator,
+            int projectId)
+        {
+            var canAccessProject = VisibleProjects(userId, isAdministrator)
+                .Any(project => project.Id == projectId);
+            if (!canAccessProject)
+                return null;
+
+            return _dbContext.Tasks
+                .AsNoTracking()
+                .Where(task => task.Project.Id == projectId)
+                .OrderBy(task => task.Id)
+                .Select(task => new Task
+                {
+                    Id = task.Id,
+                    Title = task.Title,
+                    Description = task.Description,
+                    IsFinished = task.IsFinished
+                })
+                .ToList();
         }
 
         public bool CreateProject(int userId, Project project)
@@ -55,40 +78,17 @@ namespace EmployeeData.Services
             return SaveProject();
         }
 
-        public IEnumerable<Project> GetProjectsForUser(int userId)
+        public IEnumerable<Project> GetProjectsForUser(int userId, bool isAdministrator)
         {
-            var currentUserRole = GetUserRole(userId);
-            var projects = _dbContext.Projects
-                .AsNoTracking()
-                .OrderBy(project => project.Id);
-
-            if (currentUserRole == "Administrator")
-            {
-                return projects
-                    .Select(project => new Project
-                    {
-                        Id = project.Id,
-                        Name = project.Name,
-                        Description = project.Description
-                    })
-                    .ToList();
-            }
-
-            if (currentUserRole == "Employee")
-            {
-                return projects
-                    .Where(project => project.UserProjects.Any(userProject =>
-                        userProject.UserId == userId))
-                    .Select(project => new Project
-                    {
-                        Id = project.Id,
-                        Name = project.Name,
-                        Description = project.Description
-                    })
-                    .ToList();
-            }
-
-            return Enumerable.Empty<Project>();
+            return VisibleProjects(userId, isAdministrator)
+                .OrderBy(project => project.Id)
+                .Select(project => new Project
+                {
+                    Id = project.Id,
+                    Name = project.Name,
+                    Description = project.Description
+                })
+                .ToList();
         }
 
         public bool UpdateProject(Project project)
@@ -136,38 +136,24 @@ namespace EmployeeData.Services
             var saved = _dbContext.SaveChanges();
             return saved > 0 ? true : false;
         }
-        public int GetCurrentUserId()
-        {
-            return Convert.ToInt32(_httpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-        }
-        public string GetUserRole(int? userId)
-        {
-            var user = _dbContext.Users.FirstOrDefault(u => u.Id == userId);
-            if (user != null)
-            {
-                return user.Role;
-            }
-            return "Unknown";
-        }
         public bool ProjectExists(int id)
         {
             return _dbContext.Projects.Any(p => p.Id == id);
         }
-        public bool IsUserInProject(int userId, int projectId)
-        {
-            var currentUserRole = GetUserRole(userId);
-            if (currentUserRole=="Administrator")
-            {
-                return true;
-            }
-            return HasProjectMembership(userId, projectId);
-        }
-
         public bool HasProjectMembership(int userId, int projectId)
         {
             return _dbContext.UserProjects.Any(userProject =>
                 userProject.UserId == userId
                 && userProject.ProjectId == projectId);
+        }
+
+        private IQueryable<Project> VisibleProjects(int userId, bool isAdministrator)
+        {
+            var projects = _dbContext.Projects.AsNoTracking();
+            return isAdministrator
+                ? projects
+                : projects.Where(project => project.UserProjects.Any(userProject =>
+                    userProject.UserId == userId));
         }
     }
 }

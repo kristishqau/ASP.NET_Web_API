@@ -1,6 +1,5 @@
 ﻿using EmployeeData.Helper;
 using EmployeeData.Dto;
-using EmployeeData.Models;
 using EmployeeData.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,31 +28,30 @@ namespace EmployeeData.Controllers
         }
 
         [HttpGet]
-        [ProducesResponseType(200, Type = typeof(IEnumerable<Task>))]
+        [ProducesResponseType(200, Type = typeof(IEnumerable<TaskDto>))]
         public IActionResult GetTasks()
         {
-            var tasks = _taskService.GetTasks().Select(task => task.ToDto()).ToList();
-
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            var tasks = _taskService
+                .GetTasksForUser(
+                    _taskService.GetCurrentUserId(),
+                    User.IsInRole(AdministratorRole))
+                .Select(task => task.ToDto())
+                .ToList();
             return Ok(tasks);
         }
         [HttpGet("{id}", Name = "GetTaskById")]
-        [ProducesResponseType(200, Type = typeof(Task))]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(200, Type = typeof(TaskDto))]
+        [ProducesResponseType(404)]
         public IActionResult GetTask(int id)
         {
-            if (!_taskService.TaskExists(id))
+            var task = _taskService.GetTaskForUser(
+                _taskService.GetCurrentUserId(),
+                User.IsInRole(AdministratorRole),
+                id);
+            if (task == null)
                 return NotFound();
 
-            var task = _taskService.GetTask(id).ToDto();
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            return Ok(task);
+            return Ok(task.ToDto());
         }
 
         [HttpPost]
