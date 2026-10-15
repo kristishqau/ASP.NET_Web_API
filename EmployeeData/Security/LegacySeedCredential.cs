@@ -14,10 +14,15 @@ namespace EmployeeData.Security
 
         internal static bool Matches(User user)
         {
-            return string.Equals(user.UserName, UserName, StringComparison.Ordinal)
-                && string.Equals(user.Role, "Administrator", StringComparison.Ordinal)
-                && user.PasswordHash == null
-                && PasswordMatches(user.Password);
+            return Matches(user.UserName, user.Role, user.Password)
+                && user.PasswordHash == null;
+        }
+
+        internal static bool Matches(string userName, string role, string password)
+        {
+            return string.Equals(userName, UserName, StringComparison.Ordinal)
+                && string.Equals(role, "Administrator", StringComparison.Ordinal)
+                && PasswordMatches(password);
         }
 
         internal static bool PasswordMatches(string password)
