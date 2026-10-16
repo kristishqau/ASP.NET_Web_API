@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: true
+      TESTINGPLATFORM_TELEMETRY_OPTOUT: 1
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+
+      - name: Restore locked dependencies
+        run: dotnet restore EmployeeData.sln --locked-mode
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Verify formatting
+        run: dotnet format EmployeeData.sln --no-restore --verify-no-changes
+
+      - name: Build
+        run: dotnet build EmployeeData.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test EmployeeData.sln --configuration Release --no-build --no-restore
+
+      - name: Verify migration model
+        run: >-
+          dotnet tool run dotnet-ef migrations has-pending-model-changes
+          --project EmployeeData
+          --startup-project EmployeeData
+          --configuration Release
+          --no-build
+
+      - name: Report vulnerable dependencies
+        run: >-
+          dotnet package list
+          --project EmployeeData.sln
+          --vulnerable
+          --include-transitive
+          --no-restore
