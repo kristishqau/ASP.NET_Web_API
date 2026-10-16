@@ -4,11 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
+using System.Security.Cryptography;
 
 namespace EmployeeData.Services
 {
     public sealed class AuthenticationService : IAuthenticationService
     {
+        private static readonly User DummyUser = CreateDummyUser();
+
         private readonly AppDbContext _dbContext;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly IPasswordHasher<User> _passwordHasher;
@@ -28,8 +31,14 @@ namespace EmployeeData.Services
 
         public AuthenticationResult Authenticate(string username, string password)
         {
-            if (string.IsNullOrEmpty(username) || password == null)
+            if (password == null)
                 return null;
+
+            if (string.IsNullOrEmpty(username))
+            {
+                VerifyDummyPassword(password);
+                return null;
+            }
 
             const int maxVerificationAttempts = 2;
             for (var attempt = 0; attempt < maxVerificationAttempts; attempt++)
@@ -39,7 +48,19 @@ namespace EmployeeData.Services
                     .SingleOrDefault(candidate => candidate.UserName == username);
 
                 if (user == null)
+                {
+                    VerifyDummyPassword(password);
                     return null;
+                }
+
+                if (string.IsNullOrWhiteSpace(user.PasswordHash))
+                {
+                    _logger.LogWarning(
+                        "Stored password hash is missing for user {UserId}.",
+                        user.Id);
+                    VerifyDummyPassword(password);
+                    return null;
+                }
 
                 PasswordVerificationResult verificationResult;
                 try
@@ -54,6 +75,7 @@ namespace EmployeeData.Services
                     _logger.LogWarning(
                         "Stored password hash is malformed for user {UserId}.",
                         user.Id);
+                    VerifyDummyPassword(password);
                     return null;
                 }
 
@@ -91,6 +113,27 @@ namespace EmployeeData.Services
                 Role = user.Role,
                 ProfilePictureUrl = user.ProfilePictureUrl
             };
+        }
+
+        private void VerifyDummyPassword(string password)
+        {
+            _passwordHasher.VerifyHashedPassword(
+                DummyUser,
+                DummyUser.PasswordHash,
+                password);
+        }
+
+        private static User CreateDummyUser()
+        {
+            var user = new User
+            {
+                UserName = "authentication-dummy",
+                Role = "Employee",
+                PasswordHash = string.Empty
+            };
+            var password = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            user.PasswordHash = new PasswordHasher<User>().HashPassword(user, password);
+            return user;
         }
     }
 }

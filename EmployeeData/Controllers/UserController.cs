@@ -1,8 +1,10 @@
 ﻿using EmployeeData.Helper;
 using EmployeeData.Dto;
+using EmployeeData.Security;
 using EmployeeData.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,8 +32,10 @@ namespace EmployeeData.Controllers
 
         [HttpPost("login")]
         [AllowAnonymous]
+        [EnableRateLimiting(LoginRateLimitPolicy.Name)]
         [ProducesResponseType(200, Type = typeof(LoginResponse))]
         [ProducesResponseType(401)]
+        [ProducesResponseType(429)]
         public IActionResult Login([FromBody] LoginRequest request)
         {
             var result = _authenticationService.Authenticate(

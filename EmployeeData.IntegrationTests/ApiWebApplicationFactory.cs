@@ -78,7 +78,9 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 ["BootstrapAdmin:Enabled"] = "true",
                 ["BootstrapAdmin:UserName"] = AdministratorUserName,
                 ["BootstrapAdmin:Password"] = AdministratorPassword,
-                ["BootstrapAdmin:ProfilePictureUrl"] = "test-profile-picture"
+                ["BootstrapAdmin:ProfilePictureUrl"] = "test-profile-picture",
+                ["LoginRateLimit:PermitLimit"] = "1000",
+                ["LoginRateLimit:WindowSeconds"] = "60"
             };
 
             foreach (var setting in _configurationOverrides)

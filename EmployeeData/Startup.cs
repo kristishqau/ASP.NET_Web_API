@@ -4,6 +4,8 @@ using EmployeeData.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,7 +13,10 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Globalization;
 using System.Linq;
+using System.Threading.RateLimiting;
+using System.Threading.Tasks;
 
 namespace EmployeeData
 {
@@ -40,6 +45,46 @@ namespace EmployeeData
             services.AddSingleton<
                 IValidateOptions<BootstrapAdminOptions>,
                 BootstrapAdminOptionsValidator>();
+
+            services.AddOptions<LoginRateLimitOptions>()
+                .Bind(Configuration.GetSection(LoginRateLimitOptions.SectionName))
+                .ValidateOnStart();
+            services.AddSingleton<
+                IValidateOptions<LoginRateLimitOptions>,
+                LoginRateLimitOptionsValidator>();
+            var loginRateLimit = Configuration
+                .GetSection(LoginRateLimitOptions.SectionName)
+                .Get<LoginRateLimitOptions>() ?? new LoginRateLimitOptions();
+            services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                options.OnRejected = (context, _) =>
+                {
+                    if (context.Lease.TryGetMetadata(
+                        MetadataName.RetryAfter,
+                        out var retryAfter))
+                    {
+                        context.HttpContext.Response.Headers.RetryAfter =
+                            Math.Ceiling(retryAfter.TotalSeconds)
+                                .ToString(CultureInfo.InvariantCulture);
+                    }
+
+                    return ValueTask.CompletedTask;
+                };
+                options.AddPolicy(
+                    LoginRateLimitPolicy.Name,
+                    httpContext => RateLimitPartition.GetFixedWindowLimiter(
+                        httpContext.Connection.RemoteIpAddress?.ToString()
+                            ?? "unknown",
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = loginRateLimit.PermitLimit,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromSeconds(
+                                loginRateLimit.WindowSeconds)
+                        }));
+            });
 
             services.AddCors(options =>
             {
@@ -107,6 +152,7 @@ namespace EmployeeData
 
             app.UseHttpsRedirection();
             app.UseRouting();
+            app.UseRateLimiter();
 
             app.UseAuthentication();
             app.UseAuthorization();
