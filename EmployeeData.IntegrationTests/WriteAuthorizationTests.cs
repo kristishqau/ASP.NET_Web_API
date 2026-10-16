@@ -613,7 +613,7 @@ public sealed class WriteAuthorizationTests : IClassFixture<ApiWebApplicationFac
 
     private sealed record TaskState(
         string Title,
-        string Description,
+        string? Description,
         bool IsFinished,
         int ProjectId);
 }

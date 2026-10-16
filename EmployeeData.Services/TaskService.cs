@@ -18,7 +18,7 @@ namespace EmployeeData.Services
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public Task GetTask(int id)
+        public Task? GetTask(int id)
         {
             return _dbContext.Tasks.Where(t => t.Id == id).FirstOrDefault();
         }
@@ -41,7 +41,7 @@ namespace EmployeeData.Services
                 .ToPage(page);
         }
 
-        public Task GetTaskForUser(int userId, bool isAdministrator, int taskId)
+        public Task? GetTaskForUser(int userId, bool isAdministrator, int taskId)
         {
             return VisibleTasks(userId, isAdministrator)
                 .Where(task => task.Id == taskId)
@@ -60,6 +60,8 @@ namespace EmployeeData.Services
         {
 
             var userTaskEntity = _dbContext.Users.Where(u => u.Id == userId).FirstOrDefault();
+            if (userTaskEntity == null)
+                return false;
             
             var userTask = new UserTask()
             {
@@ -98,7 +100,13 @@ namespace EmployeeData.Services
         }
         public int GetCurrentUserId()
         {
-            return Convert.ToInt32(_httpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            var userIdValue = _httpContextAccessor.HttpContext?
+                .User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdValue, out var userId))
+                throw new InvalidOperationException(
+                    "The authenticated user identifier is unavailable.");
+
+            return userId;
         }
         public bool TaskExists(int id)
         {

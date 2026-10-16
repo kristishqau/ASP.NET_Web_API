@@ -7,7 +7,7 @@ namespace EmployeeData.Security
         : IValidateOptions<BootstrapAdminOptions>
     {
         public ValidateOptionsResult Validate(
-            string name,
+            string? name,
             BootstrapAdminOptions options)
         {
             if (!options.Enabled && !options.RotateLegacySeed)

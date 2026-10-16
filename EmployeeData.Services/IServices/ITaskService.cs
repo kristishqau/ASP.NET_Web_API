@@ -5,12 +5,12 @@ namespace EmployeeData.Services
 {
     public interface ITaskService
     {
-        Task GetTask(int id); 
+        Task? GetTask(int id);
         PagedResult<Task> GetTasksForUser(
             int userId,
             bool isAdministrator,
             PageRequest page);
-        Task GetTaskForUser(int userId, bool isAdministrator, int taskId);
+        Task? GetTaskForUser(int userId, bool isAdministrator, int taskId);
         bool TaskExists(int id);
         bool TaskTitleExists(string title, int? excludedTaskId = null);
         bool CreateTask(int userId, Task task);

@@ -222,6 +222,9 @@ namespace EmployeeData.Controllers
             }
 
             var user = _userService.GetUser(userId);
+            if (user == null)
+                return NotFound();
+
             if (user.UserName == userName && user.ProfilePictureUrl == request.ProfilePictureUrl)
                 return NoContent();
 
@@ -373,7 +376,7 @@ namespace EmployeeData.Controllers
             return ValidationProblem(ModelState);
         }
 
-        private static string GetCanonicalRole(string role)
+        private static string? GetCanonicalRole(string? role)
         {
             if (string.IsNullOrWhiteSpace(role))
                 return null;

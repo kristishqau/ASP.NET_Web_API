@@ -9,13 +9,14 @@ namespace EmployeeData.Models
         public int Id { get; set; }
         [Required]
         [StringLength(200)]
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
         [StringLength(2000)]
-        public string Description { get; set; }
+        public string? Description { get; set; }
         public bool IsFinished { get; set; }
         public int ProjectId { get; set; }
         [Required]
-        public Project Project { get; set; }
-        public ICollection<UserTask> UserTasks { get; set; }
+        public Project Project { get; set; } = null!;
+        public ICollection<UserTask> UserTasks { get; set; } =
+            new List<UserTask>();
     }
 }

@@ -57,7 +57,7 @@ namespace EmployeeData.Security
             }
         }
 
-        private static bool IsSupportedRole(string role)
+        private static bool IsSupportedRole(string? role)
         {
             return string.Equals(role, AdministratorRole, StringComparison.Ordinal)
                 || string.Equals(role, EmployeeRole, StringComparison.Ordinal);

@@ -30,14 +30,14 @@ namespace EmployeeData.Services
     public interface IUserService
     {
         PagedResult<User> GetUsers(PageRequest page);
-        User GetUser(int userId);
-        User GetUserForUser(int currentUserId, bool isAdministrator, int userId);
-        PagedResult<User> GetUsersOfATaskForUser(
+        User? GetUser(int userId);
+        User? GetUserForUser(int currentUserId, bool isAdministrator, int userId);
+        PagedResult<User>? GetUsersOfATaskForUser(
             int currentUserId,
             bool isAdministrator,
             int taskId,
             PageRequest page);
-        PagedResult<User> GetUsersOfAProjectForUser(
+        PagedResult<User>? GetUsersOfAProjectForUser(
             int currentUserId,
             bool isAdministrator,
             int projectId,

@@ -145,6 +145,14 @@ namespace EmployeeData.Security
                         + "plaintext password. Correct the credential data before retrying.");
                 }
 
+                if (string.IsNullOrWhiteSpace(userName)
+                    || string.IsNullOrWhiteSpace(role))
+                {
+                    throw new InvalidOperationException(
+                        "A legacy user has a blank user name or role. "
+                        + "Correct the user data before retrying.");
+                }
+
                 var user = new User
                 {
                     Id = id,

@@ -1,5 +1,6 @@
 using Microsoft.IdentityModel.Tokens;
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace EmployeeData.Security
 {
@@ -7,7 +8,10 @@ namespace EmployeeData.Security
     {
         public const int MinimumKeySizeInBytes = 32;
 
-        public static bool TryCreate(string keyId, string encodedKey, out SymmetricSecurityKey signingKey)
+        public static bool TryCreate(
+            string? keyId,
+            string? encodedKey,
+            [NotNullWhen(true)] out SymmetricSecurityKey? signingKey)
         {
             signingKey = null;
 

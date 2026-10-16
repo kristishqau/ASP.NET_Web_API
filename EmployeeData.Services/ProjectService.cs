@@ -14,11 +14,11 @@ namespace EmployeeData.Services
             _dbContext = dbContext;
         }
 
-        public Project GetProject(int id)
+        public Project? GetProject(int id)
         {
             return _dbContext.Projects.Where(p => p.Id == id).FirstOrDefault();
         }
-        public Project GetProjectForUser(
+        public Project? GetProjectForUser(
             int userId,
             bool isAdministrator,
             int projectId)
@@ -34,7 +34,7 @@ namespace EmployeeData.Services
                 .SingleOrDefault();
         }
 
-        public PagedResult<Task> GetTasksByProjectForUser(
+        public PagedResult<Task>? GetTasksByProjectForUser(
             int userId,
             bool isAdministrator,
             int projectId,
@@ -63,6 +63,8 @@ namespace EmployeeData.Services
         public bool CreateProject(int userId, Project project)
         {
             var userProjectEntity = _dbContext.Users.Where(u => u.Id == userId).FirstOrDefault();
+            if (userProjectEntity == null)
+                return false;
 
             var userProject = new UserProject()
             {

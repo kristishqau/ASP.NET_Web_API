@@ -29,7 +29,7 @@ namespace EmployeeData.Services
             _logger = logger;
         }
 
-        public AuthenticationResult Authenticate(string username, string password)
+        public AuthenticationResult? Authenticate(string? username, string? password)
         {
             if (password == null)
                 return null;

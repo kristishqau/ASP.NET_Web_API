@@ -7,7 +7,7 @@ namespace EmployeeData.Security
         : IValidateOptions<LoginRateLimitOptions>
     {
         public ValidateOptionsResult Validate(
-            string name,
+            string? name,
             LoginRateLimitOptions options)
         {
             var failures = new List<string>();

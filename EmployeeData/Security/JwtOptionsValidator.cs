@@ -5,7 +5,7 @@ namespace EmployeeData.Security
 {
     internal sealed class JwtOptionsValidator : IValidateOptions<JwtOptions>
     {
-        public ValidateOptionsResult Validate(string name, JwtOptions options)
+        public ValidateOptionsResult Validate(string? name, JwtOptions options)
         {
             var failures = new List<string>();
 

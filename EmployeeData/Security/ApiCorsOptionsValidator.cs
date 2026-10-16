@@ -8,7 +8,7 @@ namespace EmployeeData.Security
     internal sealed class ApiCorsOptionsValidator
         : IValidateOptions<ApiCorsOptions>
     {
-        public ValidateOptionsResult Validate(string name, ApiCorsOptions options)
+        public ValidateOptionsResult Validate(string? name, ApiCorsOptions options)
         {
             var failures = new List<string>();
             var origins = options.AllowedOrigins ?? Array.Empty<string>();
@@ -39,7 +39,7 @@ namespace EmployeeData.Security
                 : ValidateOptionsResult.Fail(failures);
         }
 
-        private static bool IsExactHttpOrigin(string origin)
+        private static bool IsExactHttpOrigin(string? origin)
         {
             if (string.IsNullOrWhiteSpace(origin)
                 || !string.Equals(origin, origin.Trim(), StringComparison.Ordinal)

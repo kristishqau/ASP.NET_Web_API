@@ -109,7 +109,11 @@ namespace EmployeeData.Controllers
 
             var taskMap = taskCreate.ToEntity();
 
-            taskMap.Project = _projectService.GetProject(projectId);
+            var project = _projectService.GetProject(projectId);
+            if (project == null)
+                return NotFound();
+
+            taskMap.Project = project;
 
 
             if (!_taskService.CreateTask(userId, taskMap))
@@ -169,6 +173,9 @@ namespace EmployeeData.Controllers
             }
 
             var task = _taskService.GetTask(taskId);
+            if (task == null)
+                return NotFound();
+
             if (task.Title == updatedTask.Title
                 && task.Description == updatedTask.Description
                 && task.IsFinished == updatedTask.IsFinished)

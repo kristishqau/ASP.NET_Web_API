@@ -8,6 +8,6 @@ namespace EmployeeData.Security
         public bool RotateLegacySeed { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
-        public string ProfilePictureUrl { get; set; }
+        public string? ProfilePictureUrl { get; set; }
     }
 }

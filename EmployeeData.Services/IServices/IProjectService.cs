@@ -5,9 +5,9 @@ namespace EmployeeData.Services
 {
     public interface IProjectService
     {
-        Project GetProject(int id); 
-        Project GetProjectForUser(int userId, bool isAdministrator, int projectId);
-        PagedResult<Task> GetTasksByProjectForUser(
+        Project? GetProject(int id);
+        Project? GetProjectForUser(int userId, bool isAdministrator, int projectId);
+        PagedResult<Task>? GetTasksByProjectForUser(
             int userId,
             bool isAdministrator,
             int projectId,

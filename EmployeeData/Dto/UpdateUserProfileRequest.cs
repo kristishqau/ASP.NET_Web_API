@@ -9,6 +9,6 @@ namespace EmployeeData.Dto
         public string UserName { get; set; } = string.Empty;
 
         [StringLength(2048)]
-        public string ProfilePictureUrl { get; set; }
+        public string? ProfilePictureUrl { get; set; }
     }
 }

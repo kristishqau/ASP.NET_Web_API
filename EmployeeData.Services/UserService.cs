@@ -35,12 +35,12 @@ namespace EmployeeData.Services
                 .Select(PublicUser())
                 .ToPage(page);
         }
-        public User GetUser(int userId)
+        public User? GetUser(int userId)
         {
             return _dbContext.Users.Where(u => u.Id == userId).FirstOrDefault();
         }
 
-        public User GetUserForUser(
+        public User? GetUserForUser(
             int currentUserId,
             bool isAdministrator,
             int userId)
@@ -53,7 +53,7 @@ namespace EmployeeData.Services
                 .SingleOrDefault();
         }
 
-        public PagedResult<User> GetUsersOfATaskForUser(
+        public PagedResult<User>? GetUsersOfATaskForUser(
             int currentUserId,
             bool isAdministrator,
             int taskId,
@@ -79,7 +79,7 @@ namespace EmployeeData.Services
                 .ToPage(page);
         }
 
-        public PagedResult<User> GetUsersOfAProjectForUser(
+        public PagedResult<User>? GetUsersOfAProjectForUser(
             int currentUserId,
             bool isAdministrator,
             int projectId,
@@ -248,8 +248,8 @@ namespace EmployeeData.Services
         private UserAssignmentResult ResolveAssignment(
             int? taskId,
             int? projectId,
-            out EmployeeData.Models.Task task,
-            out Project project)
+            out EmployeeData.Models.Task? task,
+            out Project? project)
         {
             task = taskId.HasValue
                 ? _dbContext.Tasks.FirstOrDefault(candidate => candidate.Id == taskId.Value)
@@ -337,7 +337,13 @@ namespace EmployeeData.Services
 
         public int GetCurrentUserId()
         {
-            return Convert.ToInt32(_httpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            var userIdValue = _httpContextAccessor.HttpContext?
+                .User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdValue, out var userId))
+                throw new InvalidOperationException(
+                    "The authenticated user identifier is unavailable.");
+
+            return userId;
         }
         public string GetUserRole(int userId)
         {

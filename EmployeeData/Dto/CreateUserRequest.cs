@@ -20,6 +20,6 @@ namespace EmployeeData.Dto
         public string Role { get; set; } = string.Empty;
 
         [StringLength(2048)]
-        public string ProfilePictureUrl { get; set; }
+        public string? ProfilePictureUrl { get; set; }
     }
 }
