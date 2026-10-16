@@ -37,7 +37,6 @@ namespace EmployeeData.Services
         bool UserExists(int id);
         UserAssignmentResult CreateUser(int? projectId, int? taskId, User user, string password);
         bool SaveUser();
-        string Authenticate(string username, string password);
         string GetUserRole(int userId);
         int GetCurrentUserId();
         UserChangeResult SetUserRole(int userId, string role);

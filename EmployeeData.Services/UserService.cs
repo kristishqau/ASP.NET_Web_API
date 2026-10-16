@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -16,22 +15,16 @@ namespace EmployeeData.Services
     {
         private readonly AppDbContext _dbContext;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IJwtTokenService _jwtTokenService;
         private readonly IPasswordHasher<User> _passwordHasher;
-        private readonly ILogger<UserService> _logger;
 
         public UserService(
             AppDbContext dbContext,
             IHttpContextAccessor httpContextAccessor,
-            IJwtTokenService jwtTokenService,
-            IPasswordHasher<User> passwordHasher,
-            ILogger<UserService> logger)
+            IPasswordHasher<User> passwordHasher)
         {
             _dbContext = dbContext;
             _httpContextAccessor = httpContextAccessor;
-            _jwtTokenService = jwtTokenService;
             _passwordHasher = passwordHasher;
-            _logger = logger;
         }
 
         public ICollection<User> GetUsers()
@@ -358,61 +351,6 @@ namespace EmployeeData.Services
         {
             return _dbContext.Users.Any(u => u.Id == id);
         }
-        public string Authenticate(string username, string password)
-        {
-            if (string.IsNullOrEmpty(username) || password == null)
-                return null;
-
-            const int maxVerificationAttempts = 2;
-            for (var attempt = 0; attempt < maxVerificationAttempts; attempt++)
-            {
-                var user = _dbContext.Users
-                    .AsNoTracking()
-                    .SingleOrDefault(candidate => candidate.UserName == username);
-
-                if (user == null)
-                    return null;
-
-                PasswordVerificationResult verificationResult;
-                try
-                {
-                    verificationResult = _passwordHasher.VerifyHashedPassword(
-                        user,
-                        user.PasswordHash,
-                        password);
-                }
-                catch (FormatException)
-                {
-                    _logger.LogWarning(
-                        "Stored password hash is malformed for user {UserId}.",
-                        user.Id);
-                    return null;
-                }
-
-                if (verificationResult == PasswordVerificationResult.Failed)
-                    return null;
-
-                if (verificationResult == PasswordVerificationResult.Success)
-                    return _jwtTokenService.CreateToken(user);
-
-                var replacementHash = _passwordHasher.HashPassword(user, password);
-                var hashUpdated = _dbContext.Users
-                    .Where(candidate =>
-                        candidate.Id == user.Id
-                        && candidate.PasswordHash == user.PasswordHash)
-                    .ExecuteUpdate(setters => setters
-                        .SetProperty(candidate => candidate.PasswordHash, replacementHash));
-
-                if (hashUpdated == 0)
-                    continue;
-
-                user.PasswordHash = replacementHash;
-                return _jwtTokenService.CreateToken(user);
-            }
-
-            return null;
-        }
-
         private static Expression<Func<User, User>> PublicUser()
         {
             return user => new User

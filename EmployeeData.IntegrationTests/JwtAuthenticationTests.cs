@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
-using System.Text.Json;
+using EmployeeData.Dto;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
@@ -26,7 +26,13 @@ public sealed class JwtAuthenticationTests : IClassFixture<ApiWebApplicationFact
     [Fact]
     public async Task Issued_token_contains_expected_metadata_and_authenticates()
     {
-        var encodedToken = await LoginAsync();
+        var login = await LoginAsync();
+        Assert.Equal(ApiWebApplicationFactory.AdministratorUserName, login.Username);
+        Assert.Equal("Administrator", login.Role);
+        Assert.Equal("test-profile-picture", login.ProfilePictureUrl);
+        Assert.True(login.UserId > 0);
+
+        var encodedToken = login.Token;
         var token = new JwtSecurityTokenHandler().ReadJwtToken(encodedToken);
 
         Assert.Equal(ApiWebApplicationFactory.JwtKeyId, token.Header.Kid);
@@ -94,7 +100,7 @@ public sealed class JwtAuthenticationTests : IClassFixture<ApiWebApplicationFact
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    private async Task<string> LoginAsync()
+    private async Task<LoginResponse> LoginAsync()
     {
         using var response = await _client.PostAsJsonAsync(
             "/api/User/login",
@@ -104,13 +110,10 @@ public sealed class JwtAuthenticationTests : IClassFixture<ApiWebApplicationFact
                 password = ApiWebApplicationFactory.AdministratorPassword
             },
             TestContext.Current.CancellationToken);
-        var responseBody = await response.Content.ReadAsStringAsync(
-            TestContext.Current.CancellationToken);
-
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        using var document = JsonDocument.Parse(responseBody);
-        return document.RootElement.GetProperty("token").GetString()!;
+        var login = await response.Content.ReadFromJsonAsync<LoginResponse>(
+            TestContext.Current.CancellationToken);
+        return Assert.IsType<LoginResponse>(login);
     }
 
     private static HttpRequestMessage CreateAuthenticatedRequest(

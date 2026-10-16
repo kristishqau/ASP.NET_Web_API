@@ -1,10 +1,7 @@
-﻿using EmployeeData.Models;
-using System.Threading.Tasks;
-
-namespace EmployeeData.Services.IServices
+namespace EmployeeData.Services
 {
     public interface IAuthenticationService
     {
-        Task<(int, string)> Login(string username, string password);
+        AuthenticationResult Authenticate(string username, string password);
     }
 }

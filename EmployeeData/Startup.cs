@@ -56,6 +56,7 @@ namespace EmployeeData
             services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
             services.AddScoped<AdministratorBootstrapper>();
             services.AddScoped<LegacyPasswordMigrator>();
+            services.AddScoped<IAuthenticationService, AuthenticationService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IProjectService, ProjectService>();
             services.AddScoped<ITaskService, TaskService>();

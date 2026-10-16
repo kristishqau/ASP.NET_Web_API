@@ -17,13 +17,15 @@ namespace EmployeeData.Controllers
         private const string AdministratorRole = "Administrator";
         private const string EmployeeRole = "Employee";
 
+        private readonly IAuthenticationService _authenticationService;
         private readonly IUserService _userService;
-        private readonly AppDbContext _dbContext;
 
-        public UserController(IUserService userService, AppDbContext dbContext)
+        public UserController(
+            IAuthenticationService authenticationService,
+            IUserService userService)
         {
+            _authenticationService = authenticationService;
             _userService = userService;
-            _dbContext = dbContext;
         }
 
         [HttpPost("login")]
@@ -32,25 +34,21 @@ namespace EmployeeData.Controllers
         [ProducesResponseType(401)]
         public IActionResult Login([FromBody] LoginRequest request)
         {
-            var token = _userService.Authenticate(request.Username, request.Password);
-            if (token == null)
-            {
-                return Unauthorized(new { Message = "Invalid credentials" });
-            }
-
-            var user = _dbContext.Users.FirstOrDefault(u => u.UserName == request.Username);
-            if (user == null)
+            var result = _authenticationService.Authenticate(
+                request.Username,
+                request.Password);
+            if (result == null)
             {
                 return Unauthorized(new { Message = "Invalid credentials" });
             }
 
             return Ok(new LoginResponse
             {
-                Token = token,
-                UserId = user.Id,
-                Username = user.UserName,
-                Role = user.Role,
-                ProfilePictureUrl = user.ProfilePictureUrl
+                Token = result.Token,
+                UserId = result.UserId,
+                Username = result.UserName,
+                Role = result.Role,
+                ProfilePictureUrl = result.ProfilePictureUrl
             });
         }
 
