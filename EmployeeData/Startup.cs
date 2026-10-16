@@ -228,7 +228,7 @@ namespace EmployeeData
             throw new InvalidOperationException(
                 "The database schema is not current. Apply migrations before starting the API. "
                 + $"Pending migrations: {string.Join(", ", pendingMigrations)}. "
-                + "For a legacy database created with EnsureCreated, follow the adoption procedure in README.md.");
+                + "For a legacy database created with EnsureCreated, follow docs/legacy-database-upgrade.md.");
         }
 
         private static void BootstrapAdministrator(IApplicationBuilder app)

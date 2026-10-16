@@ -1,157 +1,174 @@
-## REST API
+# EmployeeData API
 
-## Project Description:
+EmployeeData is an ASP.NET Core Web API for managing employees, projects, project
+membership, and tasks. It keeps the original three-project design and business
+rules while using current .NET, secure authentication, migrations, tests, and CI.
 
-**This is a Rest API for the administration of employee records consisting of:**
-- Simple Login (JWT authentication) (no registration page, administrator will create new users)
-- Two User Roles: Employee, Administrator
-- User Profile
-- Projects and Tasks
-![API1](https://github.com/user-attachments/assets/0be594ac-e450-4bf2-8707-55328cffaf9d)
-![API2](https://github.com/user-attachments/assets/be449770-0b03-4715-bcd0-dd11432d427f)
-![API3](https://github.com/user-attachments/assets/aec8b1ae-2a3f-460a-b2df-8719775c0240)
-- Employee can update his profile data and profile picture, create tasks that belong to the projects he is part of (also can assign these tasks to other employees that are part of the project), mark his tasks as completed etc.
-Employee can view all tasks that are related to the projects he is part of (in read-only mode). Employee can not modify tasks which are not assigned to him.
-![API5](https://github.com/user-attachments/assets/450a991f-3d26-4001-9426-512da5e6912b)
-- Administrator can create/update/remove users, projects and tasks. Administrator can add employees to projects (also remove employees from them), create new tasks and assign them to other employees, mark tasks as completed or remove them. Administrator cannot remove projects that have even open tasks.
-![API5](https://github.com/user-attachments/assets/77601c5b-b340-42c7-980c-f2ba9195552e)
+## What the API does
 
-## Technologies used:
-- .NET SDK 10.0 LTS
-- Entity Framework
-- Microsoft SQL Server 2019
-- Microsoft SQL Server Management Studio 19 (Database Management)
-- Microsoft Visual Studio 2022
+- JWT authentication with `Employee` and `Administrator` roles.
+- Administrators manage users, roles, projects, membership, and tasks.
+- Employees update their own profile and work with projects they belong to.
+- Employees can create tasks only inside their projects and assign them only to
+  members of the same project.
+- Employees can update only tasks assigned to them.
+- Administrators cannot delete a project while it has unfinished tasks.
+- Collection endpoints are paginated and access is filtered before data is
+  returned.
 
-Models of the project are separated into a diferent project of type Class Library and then is added as reference to the WEB API solution. Model’s properties are enriched with Annotations for validation and documentation purposes.
+## Requirements
 
-Web Api project structure consist of Controllers, Services and Models with their repective DTOs. Each of the Service classes have their own Interface which is used with Dependency Injection in the Controller classes.
+For the simplest Windows setup, install:
 
-## JWT configuration
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- SQL Server Express LocalDB, included with the SQL Server Express download
+- Git
 
-The API does not keep signing keys in source control. Start from
-`EmployeeData/appsettings.example.json` for the non-secret configuration shape and
-supply the real connection string and JWT keys through user secrets, environment
-variables, or the deployment platform's secret store.
+Visual Studio and SQL Server Management Studio are optional. The command-line
+steps below are enough to run the application.
 
-Required environment variables use this shape:
+## Run locally
+
+From the repository root:
+
+1. Create your local configuration. This file is ignored by Git.
+
+   ```powershell
+   Copy-Item EmployeeData/appsettings.example.json EmployeeData/appsettings.json
+   ```
+
+2. Generate a signing key:
+
+   ```powershell
+   $keyBytes = New-Object byte[] 64
+   [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($keyBytes)
+   [Convert]::ToBase64String($keyBytes)
+   ```
+
+3. Open `EmployeeData/appsettings.json` and:
+
+   - replace the value in `Jwt:SigningKeys` with the generated key;
+   - set `BootstrapAdmin:Enabled` to `true`;
+   - choose an initial administrator username;
+   - choose a unique password between 15 and 128 characters.
+
+   The example connection string already targets Windows LocalDB. If you use a
+   different SQL Server, replace `ConnectionStrings:DefaultConnection`.
+
+4. Restore packages and the repository-pinned Entity Framework tool:
+
+   ```powershell
+   dotnet restore EmployeeData.sln --locked-mode
+   dotnet tool restore
+   ```
+
+5. Create or update the database:
+
+   ```powershell
+   dotnet ef database update --project EmployeeData --startup-project EmployeeData
+   ```
+
+6. Run the API:
+
+   ```powershell
+   dotnet run --project EmployeeData
+   ```
+
+7. Open `https://localhost:5001/swagger`. If HTTPS is not trusted locally, run
+   `dotnet dev-certs https --trust` once or use `http://localhost:5000/swagger`.
+
+Sign in with `POST /api/User/login`. In Swagger, select **Authorize** and paste
+the returned token. After the first successful startup, stop the API, set
+`BootstrapAdmin:Enabled` to `false`, and clear its username and password.
+Enabling bootstrap again never resets an existing password.
+
+## Configuration
+
+`EmployeeData/appsettings.example.json` documents every application setting:
+
+- `ConnectionStrings:DefaultConnection` - SQL Server connection string.
+- `Jwt` - issuer, audience, token lifetime, active signing-key ID, and signing
+  keys. Keys must be base64-encoded and at least 32 bytes.
+- `BootstrapAdmin` - guarded, first-run administrator creation. Disabled by
+  default outside your private local configuration.
+- `LoginRateLimit` - login attempts allowed per client IP and time window.
+- `Cors:AllowedOrigins` - exact browser origins allowed to call the API. An empty
+  list denies cross-origin browser requests.
+
+Environment variables can override JSON settings by replacing `:` with `__`,
+for example `Jwt__SigningKeys__local=<key>`. Never commit a real connection
+string, signing key, or bootstrap password.
+
+The historical signing key once committed to this repository must be considered
+compromised and must not be reused. Production credentials also need to be
+rotated in their hosting systems.
+
+## API behavior
+
+- Authentication is required by default. Only login and `/health` are public.
+- Swagger is available only in the Development environment.
+- Errors use Problem Details JSON and do not expose server stack traces.
+- List endpoints accept `pageNumber` and `pageSize`. Defaults are page 1 and 50
+  records; the maximum page size is 100.
+- Pagination metadata is returned in `X-Page-Number`, `X-Page-Size`, and
+  `X-Total-Count` response headers.
+- `/health` reports application and database readiness without returning
+  connection details.
+- Usernames, project names, and task titles are unique under the database's
+  normal case-insensitive SQL Server collation.
+
+## Architecture
+
+The solution is a pragmatic layered monolith:
 
 ```text
-ConnectionStrings__DefaultConnection=<secret connection string>
-Jwt__Issuer=EmployeeData.Api
-Jwt__Audience=EmployeeData.Client
-Jwt__AccessTokenMinutes=60
-Jwt__ActiveKeyId=2026_10
-Jwt__SigningKeys__2026_10=<base64-encoded random key>
+EmployeeData (API)  --->  EmployeeData.Services  --->  EmployeeData.Models
+       |___________________________________________________________^
+
+EmployeeData.IntegrationTests  API, security, and business-rule tests
 ```
 
-Generate a 32-byte development signing key in PowerShell without committing it:
+Controllers own HTTP concerns, services own business/data behavior, and explicit
+mapping keeps persistence entities out of public response contracts. This shape
+fits the application's size; extra repository, CQRS, or microservice layers would
+add ceremony without improving its current responsibilities.
+
+## Verify changes
+
+Run the same important checks used by CI:
 
 ```powershell
-[Convert]::ToBase64String(
-    [Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-```
-
-The historical repository key must be treated as compromised and must never be
-reused. Deploying this version intentionally invalidates every previously issued
-token, so users must sign in again.
-
-For routine rotation, add the new and previous keys to `Jwt__SigningKeys`, change
-`Jwt__ActiveKeyId` to the new key, restart the API, wait one maximum token lifetime
-plus clock skew, and then remove the previous key.
-
-## Database lifecycle
-
-The API validates the migration history at startup but never creates or migrates
-the production schema itself. This keeps schema changes explicit, reviewable, and
-separate from application startup. The process stops with the pending migration
-names if the configured database is not current.
-
-Restore the repository-pinned Entity Framework tool before managing the schema:
-
-```powershell
+dotnet restore EmployeeData.sln --locked-mode
 dotnet tool restore
+dotnet format EmployeeData.sln --no-restore --verify-no-changes
+dotnet build EmployeeData.sln --configuration Release --no-restore
+dotnet test EmployeeData.sln --configuration Release --no-build --no-restore
+dotnet ef migrations has-pending-model-changes `
+  --project EmployeeData --startup-project EmployeeData `
+  --configuration Release --no-build
+dotnet package list --project EmployeeData.sln `
+  --vulnerable --include-transitive --no-restore
 ```
 
-For a new, empty database—or one already managed by EF migrations—apply the
-checked-in migrations with:
+The integration tests use an isolated SQLite database, so SQL Server is not
+required to run the test suite.
 
-```powershell
-dotnet ef database update `
-  --project EmployeeData `
-  --startup-project EmployeeData
-```
+## Existing databases
 
-Earlier versions of this application used `EnsureCreated`. Such databases have
-the application tables but usually lack `__EFMigrationsHistory`; applying the
-initial migration directly would then try to recreate those tables. Back up the
-database and run [scripts/adopt-legacy-database.sql](scripts/adopt-legacy-database.sql)
-against that database first. The script is transactional and will record the
-historical baseline only after validating every expected application column,
-primary key, foreign key, and index. It refuses empty or structurally
-incompatible schemas without changing them; compatible extra indexes are
-preserved.
+The API deliberately does not apply migrations during startup. It fails fast if
+the configured schema is behind, keeping database changes explicit.
 
-With Windows authentication and `sqlcmd`, the adoption command has this shape:
+Fresh databases only need the `dotnet ef database update` command above. If a
+database came from the old `EnsureCreated` version or still contains legacy
+plaintext password data, follow the backed-up, one-way procedure in
+[Legacy database upgrade](docs/legacy-database-upgrade.md).
 
-```powershell
-sqlcmd -S <server> -d <database> -E `
-  -i scripts/adopt-legacy-database.sql -b
-```
+## Continuous integration
 
-After adoption, apply pending migrations with the same `dotnet ef database
-update` command. Re-running the adoption script is safe: if its baseline entry
-already exists, it exits without making changes.
+GitHub Actions verifies locked dependency restore, formatting, Release build,
+all tests, migration-model consistency, and direct/transitive package advisories
+on every push and pull request.
 
-## Initial administrator bootstrap
+## License
 
-The API no longer creates a fixed administrator or stores a demonstration
-password in production code. Administrator creation is disabled by default and
-is allowed only as an explicit first-run operation against an empty database.
-
-Supply the bootstrap credential through the deployment secret store, after the
-database migrations have been applied:
-
-```text
-BootstrapAdmin__Enabled=true
-BootstrapAdmin__RotateLegacySeed=false
-BootstrapAdmin__UserName=<initial administrator user name>
-BootstrapAdmin__Password=<unique password of 15-128 characters>
-BootstrapAdmin__ProfilePictureUrl=<optional URL>
-```
-
-Start the API once, confirm the administrator can sign in, then set
-`BootstrapAdmin__Enabled=false` and remove the bootstrap password from the
-runtime environment. Re-running an enabled bootstrap never resets a password.
-If the database is already populated and does not contain the configured
-administrator, startup fails instead of silently granting privileges.
-
-## Upgrading legacy password data
-
-Fresh databases can apply every migration normally. For a database created by
-an older version, back it up and stop every old application instance before
-continuing. First migrate only to the last schema that still contains the
-legacy column:
-
-```powershell
-dotnet ef database update 20261014191020_EnforceBoundedDomainValues `
-  --project EmployeeData --startup-project EmployeeData
-dotnet run --project EmployeeData --configuration Release -- `
-  --legacy-password-migration=dry-run
-dotnet run --project EmployeeData --configuration Release -- `
-  --legacy-password-migration=apply
-dotnet ef database update --project EmployeeData --startup-project EmployeeData
-```
-
-The dry run validates every credential without writing. The apply command hashes
-usable legacy passwords, preserves valid existing hashes, clears plaintext, and
-is safe to repeat. If the historical public `admin` credential exists, set
-`BootstrapAdmin__RotateLegacySeed=true`, `BootstrapAdmin__UserName=admin`, and a
-new unique `BootstrapAdmin__Password` for the two maintenance commands. Then set
-`BootstrapAdmin__RotateLegacySeed=false` and remove that password before normal
-startup.
-
-The final migration refuses to drop plaintext storage until every user has a
-nonblank hash and every plaintext value is cleared. Login never reads plaintext.
-This cleanup is intentionally one-way for plaintext data: roll forward or
-restore the backup if the deployment fails.
+See [LICENSE](LICENSE).
