@@ -40,6 +40,9 @@ namespace EmployeeData.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Name")
+                        .IsUnique();
+
                     b.ToTable("Projects", t =>
                         {
                             t.HasCheckConstraint("CK_Projects_Name_NotBlank", "TRIM([Name]) <> ''");
@@ -72,6 +75,9 @@ namespace EmployeeData.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ProjectId");
+
+                    b.HasIndex("Title")
+                        .IsUnique();
 
                     b.ToTable("Tasks", t =>
                         {

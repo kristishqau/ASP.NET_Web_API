@@ -79,6 +79,16 @@ public sealed class DataIntegrityTests : IClassFixture<ApiWebApplicationFactory>
             index => index.Properties.Select(property => property.Name)
                 .SequenceEqual(new[] { nameof(User.UserName) }));
         Assert.True(userNameIndex.IsUnique);
+        var projectNameIndex = Assert.Single(
+            project.GetIndexes(),
+            index => index.Properties.Select(property => property.Name)
+                .SequenceEqual(new[] { nameof(Project.Name) }));
+        Assert.True(projectNameIndex.IsUnique);
+        var taskTitleIndex = Assert.Single(
+            task.GetIndexes(),
+            index => index.Properties.Select(property => property.Name)
+                .SequenceEqual(new[] { nameof(ProjectTask.Title) }));
+        Assert.True(taskTitleIndex.IsUnique);
 
         Assert.Contains(
             designUser.GetCheckConstraints(),
@@ -108,6 +118,40 @@ public sealed class DataIntegrityTests : IClassFixture<ApiWebApplicationFactory>
             NewUser(userName, "Administrator"));
 
         Assert.Throws<DbUpdateException>(() => dbContext.SaveChanges());
+    }
+
+    [Fact]
+    public void Duplicate_project_names_and_task_titles_are_rejected_by_the_database()
+    {
+        var projectName = $"duplicate-project-{Guid.NewGuid():N}";
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            dbContext.Projects.AddRange(
+                new Project { Name = projectName },
+                new Project { Name = projectName });
+
+            Assert.Throws<DbUpdateException>(() => dbContext.SaveChanges());
+        }
+
+        var taskTitle = $"duplicate-task-{Guid.NewGuid():N}";
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            dbContext.Tasks.AddRange(
+                new ProjectTask
+                {
+                    Title = taskTitle,
+                    Project = new Project { Name = $"first-{Guid.NewGuid():N}" }
+                },
+                new ProjectTask
+                {
+                    Title = taskTitle,
+                    Project = new Project { Name = $"second-{Guid.NewGuid():N}" }
+                });
+
+            Assert.Throws<DbUpdateException>(() => dbContext.SaveChanges());
+        }
     }
 
     [Fact]

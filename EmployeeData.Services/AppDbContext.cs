@@ -36,6 +36,8 @@ namespace EmployeeData.Services
 
             modelBuilder.Entity<Project>(project =>
             {
+                project.HasIndex(candidate => candidate.Name)
+                    .IsUnique();
                 project.Property(candidate => candidate.Description)
                     .IsRequired(false);
                 project.ToTable(table => table.HasCheckConstraint(
@@ -51,6 +53,8 @@ namespace EmployeeData.Services
                 .IsRequired();
             modelBuilder.Entity<Task>(task =>
             {
+                task.HasIndex(candidate => candidate.Title)
+                    .IsUnique();
                 task.Property(candidate => candidate.Description)
                     .IsRequired(false);
                 task.ToTable(table => table.HasCheckConstraint(

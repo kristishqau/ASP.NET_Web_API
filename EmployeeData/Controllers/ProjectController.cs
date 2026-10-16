@@ -92,14 +92,7 @@ namespace EmployeeData.Controllers
                 return ValidationProblem(ModelState);
             }
 
-            var projects = _projectService.GetProjects()
-                .Where(project => string.Equals(
-                    (project.Name ?? string.Empty).Trim(),
-                    projectCreate.Name,
-                    StringComparison.OrdinalIgnoreCase))
-                .FirstOrDefault();
-
-            if (projects != null)
+            if (_projectService.ProjectNameExists(projectCreate.Name))
             {
                 ModelState.AddModelError("", "Project already exists");
                 return ValidationProblem(
@@ -145,12 +138,7 @@ namespace EmployeeData.Controllers
                 return ValidationProblem(ModelState);
             }
 
-            if (_projectService.GetProjects().Any(project =>
-                project.Id != projectId
-                && string.Equals(
-                    (project.Name ?? string.Empty).Trim(),
-                    updatedProject.Name,
-                    StringComparison.OrdinalIgnoreCase)))
+            if (_projectService.ProjectNameExists(updatedProject.Name, projectId))
             {
                 ModelState.AddModelError(nameof(updatedProject.Name), "Project already exists.");
                 return ValidationProblem(

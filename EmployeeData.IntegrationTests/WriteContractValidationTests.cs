@@ -210,6 +210,36 @@ public sealed class WriteContractValidationTests : IClassFixture<ApiWebApplicati
     }
 
     [Fact]
+    public async System.Threading.Tasks.Task Project_name_uniqueness_is_case_insensitive_for_writes()
+    {
+        var administrator = await LoginAsAdministratorAsync();
+        var (userId, _) = GetAdministratorMembership();
+        var existingName = $"duplicate-project-{Guid.NewGuid():N}";
+        AddProject(existingName);
+
+        using var createRequest = CreateJsonRequest(
+            HttpMethod.Post,
+            $"/api/Project?userId={userId}",
+            administrator,
+            new { name = existingName.ToUpperInvariant(), description = "duplicate project" });
+        using var createResponse = await _client.SendAsync(
+            createRequest,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, createResponse.StatusCode);
+
+        var projectToUpdate = AddProject();
+        using var updateRequest = CreateJsonRequest(
+            HttpMethod.Put,
+            $"/api/Project/{projectToUpdate}",
+            administrator,
+            new { name = existingName.ToUpperInvariant(), description = "duplicate project" });
+        using var updateResponse = await _client.SendAsync(
+            updateRequest,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, updateResponse.StatusCode);
+    }
+
+    [Fact]
     public async System.Threading.Tasks.Task Create_routes_return_created_resources_and_locations()
     {
         var administrator = await LoginAsAdministratorAsync();
@@ -297,13 +327,13 @@ public sealed class WriteContractValidationTests : IClassFixture<ApiWebApplicati
             .First();
     }
 
-    private int AddProject()
+    private int AddProject(string? name = null)
     {
         using var scope = _factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var project = new Project
         {
-            Name = $"original-{Guid.NewGuid():N}",
+            Name = name ?? $"original-{Guid.NewGuid():N}",
             Description = "original description"
         };
         dbContext.Projects.Add(project);

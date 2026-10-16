@@ -14,10 +14,6 @@ namespace EmployeeData.Services
             _dbContext = dbContext;
         }
 
-        public ICollection<Project> GetProjects()
-        {
-            return _dbContext.Projects.OrderBy(p => p.Id).ToList();
-        }
         public Project GetProject(int id)
         {
             return _dbContext.Projects.Where(p => p.Id == id).FirstOrDefault();
@@ -123,6 +119,13 @@ namespace EmployeeData.Services
         public bool ProjectExists(int id)
         {
             return _dbContext.Projects.Any(p => p.Id == id);
+        }
+        public bool ProjectNameExists(string name, int? excludedProjectId = null)
+        {
+            var normalizedName = name.Trim().ToUpperInvariant();
+            return _dbContext.Projects.Any(project =>
+                (!excludedProjectId.HasValue || project.Id != excludedProjectId.Value)
+                && (project.Name ?? string.Empty).Trim().ToUpper() == normalizedName);
         }
         public bool HasProjectMembership(int userId, int projectId)
         {
