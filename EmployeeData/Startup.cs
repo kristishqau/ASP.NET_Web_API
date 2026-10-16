@@ -2,15 +2,18 @@ using EmployeeData.Services;
 using EmployeeData.Security;
 using EmployeeData.Models;
 using EmployeeData.Helper;
+using EmployeeData.Health;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +42,8 @@ namespace EmployeeData
                     b => b.MigrationsAssembly("EmployeeData")));
 
             services.AddProblemDetails();
+            services.AddHealthChecks()
+                .AddCheck<DatabaseHealthCheck>("database");
 
             services.AddJwtSecurity(Configuration);
             services.AddOptions<BootstrapAdminOptions>()
@@ -178,7 +183,37 @@ namespace EmployeeData
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+                endpoints.MapHealthChecks(
+                    "/health",
+                    new HealthCheckOptions
+                    {
+                        ResponseWriter = WriteHealthResponse
+                    })
+                    .AllowAnonymous();
+            });
+        }
+
+        private static System.Threading.Tasks.Task WriteHealthResponse(
+            HttpContext context,
+            HealthReport report)
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            var response = new
+            {
+                status = report.Status.ToString(),
+                checks = report.Entries.Select(entry => new
+                {
+                    name = entry.Key,
+                    status = entry.Value.Status.ToString()
+                })
+            };
+
+            return context.Response.WriteAsJsonAsync(
+                response,
+                context.RequestAborted);
         }
 
         private static void ValidateDatabaseMigrations(IApplicationBuilder app)
