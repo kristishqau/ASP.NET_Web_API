@@ -149,8 +149,8 @@ namespace EmployeeData.Security
                 {
                     Id = id,
                     UserName = userName,
-                    Password = string.Empty,
-                    Role = role
+                    Role = role,
+                    PasswordHash = passwordHash ?? string.Empty
                 };
                 var passwordToHash = plaintext;
                 if (LegacySeedCredential.Matches(userName, role, plaintext))

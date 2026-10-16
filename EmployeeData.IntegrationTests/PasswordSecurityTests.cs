@@ -56,7 +56,6 @@ public sealed class PasswordSecurityTests : IClassFixture<ApiWebApplicationFacto
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         var storedUser = GetStoredUser(userName);
-        Assert.Equal(string.Empty, storedUser.Password);
         Assert.False(string.IsNullOrWhiteSpace(storedUser.PasswordHash));
         Assert.DoesNotContain(password, storedUser.PasswordHash, StringComparison.Ordinal);
         AssertPasswordVerifies(storedUser, password);
@@ -91,91 +90,37 @@ public sealed class PasswordSecurityTests : IClassFixture<ApiWebApplicationFacto
     }
 
     [Fact]
-    public async Task Correct_legacy_login_hashes_password_and_clears_plaintext()
-    {
-        var userName = $"legacy-{Guid.NewGuid():N}";
-        const string password = "legacy-password";
-        AddUser(new User
-        {
-            UserName = userName,
-            Password = password,
-            PasswordHash = null,
-            Role = "Employee"
-        });
-
-        var login = await LoginAsync(userName, password);
-        Assert.Equal("Employee", login.Role);
-
-        var upgradedUser = GetStoredUser(userName);
-        Assert.Equal(string.Empty, upgradedUser.Password);
-        Assert.False(string.IsNullOrWhiteSpace(upgradedUser.PasswordHash));
-        AssertPasswordVerifies(upgradedUser, password);
-    }
-
-    [Fact]
-    public async Task Wrong_legacy_password_does_not_modify_credentials()
-    {
-        var cancellationToken = TestContext.Current.CancellationToken;
-        var userName = $"legacy-failed-{Guid.NewGuid():N}";
-        const string storedPassword = "stored-password";
-        AddUser(new User
-        {
-            UserName = userName,
-            Password = storedPassword,
-            PasswordHash = null,
-            Role = "Employee"
-        });
-
-        using var response = await _client.PostAsJsonAsync(
-            "/api/User/login",
-            new { username = userName, password = "wrong-password" },
-            cancellationToken);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-
-        var unchangedUser = GetStoredUser(userName);
-        Assert.Equal(storedPassword, unchangedUser.Password);
-        Assert.Null(unchangedUser.PasswordHash);
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("not-a-valid-password-hash")]
-    public async Task Non_null_invalid_hash_never_falls_back_to_plaintext(string invalidHash)
+    public async Task Malformed_hash_is_rejected_without_changing_it()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var userName = $"invalid-hash-{Guid.NewGuid():N}";
-        const string residualPlaintext = "residual-password";
+        const string invalidHash = "not-a-valid-password-hash";
         AddUser(new User
         {
             UserName = userName,
-            Password = residualPlaintext,
             PasswordHash = invalidHash,
             Role = "Employee"
         });
 
         using var response = await _client.PostAsJsonAsync(
             "/api/User/login",
-            new { username = userName, password = residualPlaintext },
+            new { username = userName, password = "candidate-password" },
             cancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
 
         var unchangedUser = GetStoredUser(userName);
-        Assert.Equal(residualPlaintext, unchangedUser.Password);
         Assert.Equal(invalidHash, unchangedUser.PasswordHash);
     }
 
     [Fact]
-    public async Task Valid_hash_mismatch_never_falls_back_to_plaintext()
+    public async Task Valid_hash_mismatch_is_rejected_without_changing_the_hash()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var userName = $"hash-mismatch-{Guid.NewGuid():N}";
-        const string residualPlaintext = "residual-password";
         var user = new User
         {
             UserName = userName,
-            Password = residualPlaintext,
             Role = "Employee"
         };
         using (var scope = _factory.Services.CreateScope())
@@ -191,40 +136,12 @@ public sealed class PasswordSecurityTests : IClassFixture<ApiWebApplicationFacto
 
         using var response = await _client.PostAsJsonAsync(
             "/api/User/login",
-            new { username = userName, password = residualPlaintext },
+            new { username = userName, password = "wrong-password" },
             cancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         var unchangedUser = GetStoredUser(userName);
-        Assert.Equal(residualPlaintext, unchangedUser.Password);
         Assert.Equal(originalHash, unchangedUser.PasswordHash);
-    }
-
-    [Fact]
-    public async Task Valid_hash_login_clears_residual_plaintext()
-    {
-        var userName = $"hash-cleanup-{Guid.NewGuid():N}";
-        const string currentPassword = "current-password-value";
-        var user = new User
-        {
-            UserName = userName,
-            Password = "obsolete-plaintext",
-            Role = "Employee"
-        };
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var passwordHasher = scope.ServiceProvider
-                .GetRequiredService<IPasswordHasher<User>>();
-            user.PasswordHash = passwordHasher.HashPassword(user, currentPassword);
-        }
-        var originalHash = user.PasswordHash;
-        AddUser(user);
-
-        await LoginAsync(userName, currentPassword);
-
-        var cleanedUser = GetStoredUser(userName);
-        Assert.Equal(string.Empty, cleanedUser.Password);
-        Assert.Equal(originalHash, cleanedUser.PasswordHash);
     }
 
     [Fact]
@@ -235,7 +152,6 @@ public sealed class PasswordSecurityTests : IClassFixture<ApiWebApplicationFacto
         var user = new User
         {
             UserName = userName,
-            Password = string.Empty,
             Role = "Employee"
         };
         var legacyHasher = new PasswordHasher<User>(Options.Create(
@@ -248,49 +164,7 @@ public sealed class PasswordSecurityTests : IClassFixture<ApiWebApplicationFacto
 
         var rehashedUser = GetStoredUser(userName);
         Assert.NotEqual(originalHash, rehashedUser.PasswordHash);
-        Assert.Equal(string.Empty, rehashedUser.Password);
         AssertPasswordVerifies(rehashedUser, password);
-    }
-
-    [Fact]
-    public async Task Concurrent_legacy_logins_converge_on_one_valid_hash()
-    {
-        var cancellationToken = TestContext.Current.CancellationToken;
-        var userName = $"concurrent-{Guid.NewGuid():N}";
-        const string password = "concurrent-password";
-        AddUser(new User
-        {
-            UserName = userName,
-            Password = password,
-            PasswordHash = null,
-            Role = "Employee"
-        });
-
-        var loginTasks = Enumerable.Range(0, 2)
-            .Select(_ => _client.PostAsJsonAsync(
-                "/api/User/login",
-                new { username = userName, password },
-                cancellationToken))
-            .ToArray();
-        var responses = await Task.WhenAll(loginTasks);
-
-        try
-        {
-            Assert.All(
-                responses,
-                response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
-        }
-        finally
-        {
-            foreach (var response in responses)
-            {
-                response.Dispose();
-            }
-        }
-
-        var upgradedUser = GetStoredUser(userName);
-        Assert.Equal(string.Empty, upgradedUser.Password);
-        AssertPasswordVerifies(upgradedUser, password);
     }
 
     private async Task<LoginResponse> LoginAsync(string userName, string password)

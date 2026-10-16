@@ -39,7 +39,7 @@ public sealed class LegacyPasswordMigratorTests
 
         var firstResult = harness.Run(LegacyPasswordMigrationMode.Apply);
         var migratedUser = harness.GetUser(user.Id);
-        var firstHash = migratedUser.PasswordHash;
+        var firstHash = Assert.IsType<string>(migratedUser.PasswordHash);
 
         Assert.Equal(1, firstResult.PasswordsHashed);
         Assert.Equal(1, firstResult.PlaintextValuesCleared);
@@ -48,7 +48,7 @@ public sealed class LegacyPasswordMigratorTests
         Assert.Equal(
             PasswordVerificationResult.Success,
             harness.PasswordHasher.VerifyHashedPassword(
-                migratedUser,
+                migratedUser.ToUser(),
                 firstHash,
                 password));
 
@@ -101,17 +101,19 @@ public sealed class LegacyPasswordMigratorTests
     public void Existing_valid_hash_is_preserved_while_plaintext_is_cleared()
     {
         using var harness = new MigratorHarness();
-        var user = new User
+        var hashingUser = new User
         {
             UserName = "already-hashed-user",
-            Password = "obsolete-plaintext",
-            Role = "Employee"
+            Role = "Employee",
+            PasswordHash = string.Empty
         };
-        user.PasswordHash = harness.PasswordHasher.HashPassword(
-            user,
+        var originalHash = harness.PasswordHasher.HashPassword(
+            hashingUser,
             "current-password");
-        var originalHash = user.PasswordHash;
-        harness.AddUser(user);
+        var user = harness.AddUser(
+            hashingUser.UserName,
+            "obsolete-plaintext",
+            originalHash);
 
         var result = harness.Run(LegacyPasswordMigrationMode.Apply);
         var storedUser = harness.GetUser(user.Id);
@@ -150,14 +152,14 @@ public sealed class LegacyPasswordMigratorTests
         Assert.Equal(
             PasswordVerificationResult.Success,
             harness.PasswordHasher.VerifyHashedPassword(
-                migratedAdministrator,
-                migratedAdministrator.PasswordHash,
+                migratedAdministrator.ToUser(),
+                Assert.IsType<string>(migratedAdministrator.PasswordHash),
                 replacementPassword));
         Assert.Equal(
             PasswordVerificationResult.Failed,
             harness.PasswordHasher.VerifyHashedPassword(
-                migratedAdministrator,
-                migratedAdministrator.PasswordHash,
+                migratedAdministrator.ToUser(),
+                Assert.IsType<string>(migratedAdministrator.PasswordHash),
                 "adminpassword"));
     }
 
@@ -224,11 +226,25 @@ public sealed class LegacyPasswordMigratorTests
         internal MigratorHarness()
         {
             _connection.Open();
+            using (var command = _connection.CreateCommand())
+            {
+                command.CommandText =
+                    """
+                    CREATE TABLE [Users] (
+                        [Id] INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        [UserName] TEXT NOT NULL,
+                        [Password] TEXT NOT NULL,
+                        [PasswordHash] TEXT NULL,
+                        [Role] TEXT NOT NULL
+                    );
+                    """;
+                command.ExecuteNonQuery();
+            }
+
             var options = new DbContextOptionsBuilder<AppDbContext>()
                 .UseSqlite(_connection)
                 .Options;
             DbContext = new AppDbContext(options);
-            DbContext.Database.EnsureCreated();
             PasswordHasher = new PasswordHasher<User>();
         }
 
@@ -240,7 +256,6 @@ public sealed class LegacyPasswordMigratorTests
             LegacyPasswordMigrationMode mode,
             ILogger<LegacyPasswordMigrator>? logger = null)
         {
-            DbContext.ChangeTracker.Clear();
             return new LegacyPasswordMigrator(
                 DbContext,
                 PasswordHasher,
@@ -249,41 +264,77 @@ public sealed class LegacyPasswordMigratorTests
                 .Run(mode);
         }
 
-        internal User AddUser(
+        internal LegacyUser AddUser(
             string userName,
             string password,
             string? passwordHash = null,
             string role = "Employee")
         {
-            return AddUser(new User
-            {
-                UserName = userName,
-                Password = password,
-                PasswordHash = passwordHash,
-                Role = role
-            });
+            using var command = _connection.CreateCommand();
+            command.CommandText =
+                """
+                INSERT INTO [Users] ([UserName], [Password], [PasswordHash], [Role])
+                VALUES (@userName, @password, @passwordHash, @role);
+                SELECT last_insert_rowid();
+                """;
+            command.Parameters.AddWithValue("@userName", userName);
+            command.Parameters.AddWithValue("@password", password);
+            command.Parameters.AddWithValue(
+                "@passwordHash",
+                (object?)passwordHash ?? DBNull.Value);
+            command.Parameters.AddWithValue("@role", role);
+            var id = Convert.ToInt32(command.ExecuteScalar());
+            return new LegacyUser(
+                id,
+                userName,
+                password,
+                passwordHash,
+                role);
         }
 
-        internal User AddUser(User user)
+        internal LegacyUser GetUser(int userId)
         {
-            DbContext.Users.Add(user);
-            DbContext.SaveChanges();
-            DbContext.ChangeTracker.Clear();
-            return user;
-        }
-
-        internal User GetUser(int userId)
-        {
-            DbContext.ChangeTracker.Clear();
-            return DbContext.Users
-                .AsNoTracking()
-                .Single(user => user.Id == userId);
+            using var command = _connection.CreateCommand();
+            command.CommandText =
+                """
+                SELECT [Id], [UserName], [Password], [PasswordHash], [Role]
+                FROM [Users]
+                WHERE [Id] = @id;
+                """;
+            command.Parameters.AddWithValue("@id", userId);
+            using var reader = command.ExecuteReader();
+            Assert.True(reader.Read());
+            return new LegacyUser(
+                reader.GetInt32(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3),
+                reader.GetString(4));
         }
 
         public void Dispose()
         {
             DbContext.Dispose();
             _connection.Dispose();
+        }
+    }
+
+    private sealed record LegacyUser(
+        int Id,
+        string UserName,
+        string Password,
+        string? PasswordHash,
+        string Role)
+    {
+        internal User ToUser()
+        {
+            return new User
+            {
+                Id = Id,
+                UserName = UserName,
+                PasswordHash = PasswordHash ?? string.Empty,
+                Role = Role
+            };
         }
     }
 }

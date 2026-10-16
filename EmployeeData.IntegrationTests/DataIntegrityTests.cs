@@ -65,6 +65,8 @@ public sealed class DataIntegrityTests : IClassFixture<ApiWebApplicationFactory>
         var designTask = GetEntityType<ProjectTask>(designModel);
 
         AssertProperty(user, nameof(User.UserName), isNullable: false, maxLength: 100);
+        AssertProperty(user, nameof(User.PasswordHash), isNullable: false, maxLength: 512);
+        Assert.Null(user.FindProperty("Password"));
         AssertProperty(user, nameof(User.Role), isNullable: false, maxLength: 32);
         AssertProperty(user, nameof(User.ProfilePictureUrl), isNullable: true, maxLength: 2048);
         AssertProperty(project, nameof(Project.Name), isNullable: false, maxLength: 100);
@@ -81,6 +83,9 @@ public sealed class DataIntegrityTests : IClassFixture<ApiWebApplicationFactory>
         Assert.Contains(
             designUser.GetCheckConstraints(),
             constraint => constraint.Name == "CK_Users_UserName_NotBlank");
+        Assert.Contains(
+            designUser.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_Users_PasswordHash_NotBlank");
         Assert.Contains(
             designUser.GetCheckConstraints(),
             constraint => constraint.Name == "CK_Users_Role");
@@ -123,6 +128,18 @@ public sealed class DataIntegrityTests : IClassFixture<ApiWebApplicationFactory>
         }
     }
 
+    [Fact]
+    public void Blank_password_hashes_are_rejected_by_the_database()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = NewUser($"blank-hash-{Guid.NewGuid():N}", "Employee");
+        user.PasswordHash = "   ";
+        dbContext.Users.Add(user);
+
+        Assert.Throws<DbUpdateException>(() => dbContext.SaveChanges());
+    }
+
     private static IEntityType GetEntityType<TEntity>(AppDbContext dbContext)
     {
         return Assert.IsAssignableFrom<IEntityType>(
@@ -152,7 +169,7 @@ public sealed class DataIntegrityTests : IClassFixture<ApiWebApplicationFactory>
         return new User
         {
             UserName = userName,
-            Password = string.Empty,
+            PasswordHash = "not-used-by-this-test",
             Role = role
         };
     }

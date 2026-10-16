@@ -11,7 +11,6 @@ namespace EmployeeData.Models
         [StringLength(100)]
         public string UserName { get; set; }
         [Required]
-        public string Password { get; set; }
         [StringLength(512)]
         public string PasswordHash { get; set; }
         [Required]

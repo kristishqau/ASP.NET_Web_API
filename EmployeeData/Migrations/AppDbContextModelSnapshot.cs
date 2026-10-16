@@ -87,11 +87,8 @@ namespace EmployeeData.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Password")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("PasswordHash")
+                        .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
 
@@ -116,6 +113,8 @@ namespace EmployeeData.Migrations
 
                     b.ToTable("Users", t =>
                         {
+                            t.HasCheckConstraint("CK_Users_PasswordHash_NotBlank", "TRIM([PasswordHash]) <> ''");
+
                             t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Administrator', 'Employee')");
 
                             t.HasCheckConstraint("CK_Users_UserName_NotBlank", "TRIM([UserName]) <> ''");

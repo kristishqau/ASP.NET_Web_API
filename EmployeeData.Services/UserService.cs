@@ -9,8 +9,6 @@ using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace EmployeeData.Services
 {
@@ -116,7 +114,6 @@ namespace EmployeeData.Services
             if (assignmentResult != UserAssignmentResult.Succeeded)
                 return assignmentResult;
 
-            user.Password = string.Empty;
             user.PasswordHash = _passwordHasher.HashPassword(user, password);
 
             _dbContext.Users.Add(user);
@@ -376,29 +373,6 @@ namespace EmployeeData.Services
                 if (user == null)
                     return null;
 
-                if (user.PasswordHash == null)
-                {
-                    if (!LegacyPasswordMatches(user.Password, password))
-                        return null;
-
-                    var passwordHash = _passwordHasher.HashPassword(user, password);
-                    var updated = _dbContext.Users
-                        .Where(candidate =>
-                            candidate.Id == user.Id
-                            && candidate.PasswordHash == null
-                            && candidate.Password == user.Password)
-                        .ExecuteUpdate(setters => setters
-                            .SetProperty(candidate => candidate.PasswordHash, passwordHash)
-                            .SetProperty(candidate => candidate.Password, string.Empty));
-
-                    if (updated == 0)
-                        continue;
-
-                    user.PasswordHash = passwordHash;
-                    user.Password = string.Empty;
-                    return _jwtTokenService.CreateToken(user);
-                }
-
                 PasswordVerificationResult verificationResult;
                 try
                 {
@@ -418,28 +392,21 @@ namespace EmployeeData.Services
                 if (verificationResult == PasswordVerificationResult.Failed)
                     return null;
 
-                var requiresRehash =
-                    verificationResult == PasswordVerificationResult.SuccessRehashNeeded;
-                if (!requiresRehash && string.IsNullOrEmpty(user.Password))
+                if (verificationResult == PasswordVerificationResult.Success)
                     return _jwtTokenService.CreateToken(user);
 
-                var replacementHash = requiresRehash
-                    ? _passwordHasher.HashPassword(user, password)
-                    : user.PasswordHash;
+                var replacementHash = _passwordHasher.HashPassword(user, password);
                 var hashUpdated = _dbContext.Users
                     .Where(candidate =>
                         candidate.Id == user.Id
-                        && candidate.PasswordHash == user.PasswordHash
-                        && candidate.Password == user.Password)
+                        && candidate.PasswordHash == user.PasswordHash)
                     .ExecuteUpdate(setters => setters
-                        .SetProperty(candidate => candidate.PasswordHash, replacementHash)
-                        .SetProperty(candidate => candidate.Password, string.Empty));
+                        .SetProperty(candidate => candidate.PasswordHash, replacementHash));
 
                 if (hashUpdated == 0)
                     continue;
 
                 user.PasswordHash = replacementHash;
-                user.Password = string.Empty;
                 return _jwtTokenService.CreateToken(user);
             }
 
@@ -455,16 +422,6 @@ namespace EmployeeData.Services
                 Role = user.Role,
                 ProfilePictureUrl = user.ProfilePictureUrl
             };
-        }
-
-        private static bool LegacyPasswordMatches(string storedPassword, string providedPassword)
-        {
-            if (storedPassword == null)
-                return false;
-
-            var storedDigest = SHA256.HashData(Encoding.UTF8.GetBytes(storedPassword));
-            var providedDigest = SHA256.HashData(Encoding.UTF8.GetBytes(providedPassword));
-            return CryptographicOperations.FixedTimeEquals(storedDigest, providedDigest);
         }
     }
 }

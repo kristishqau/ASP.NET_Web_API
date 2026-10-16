@@ -126,28 +126,32 @@ runtime environment. Re-running an enabled bootstrap never resets a password.
 If the database is already populated and does not contain the configured
 administrator, startup fails instead of silently granting privileges.
 
-An existing database created by an older version may still contain the
-historical demonstration administrator and its public credential. This version
-detects that exact credential and refuses to start until it is rotated. Perform
-the one-time rotation with `BootstrapAdmin__Enabled=false`,
+## Upgrading legacy password data
+
+Fresh databases can apply every migration normally. For a database created by
+an older version, back it up and stop every old application instance before
+continuing. First migrate only to the last schema that still contains the
+legacy column:
+
+```powershell
+dotnet ef database update 20261014191020_EnforceBoundedDomainValues `
+  --project EmployeeData --startup-project EmployeeData
+dotnet run --project EmployeeData --configuration Release -- `
+  --legacy-password-migration=dry-run
+dotnet run --project EmployeeData --configuration Release -- `
+  --legacy-password-migration=apply
+dotnet ef database update --project EmployeeData --startup-project EmployeeData
+```
+
+The dry run validates every credential without writing. The apply command hashes
+usable legacy passwords, preserves valid existing hashes, clears plaintext, and
+is safe to repeat. If the historical public `admin` credential exists, set
 `BootstrapAdmin__RotateLegacySeed=true`, `BootstrapAdmin__UserName=admin`, and a
-new unique `BootstrapAdmin__Password`. After a successful start and login, set
-`BootstrapAdmin__RotateLegacySeed=false` and remove the password from the
-environment. The rotation is idempotent for the same replacement password and
-never resets a different credential.
+new unique `BootstrapAdmin__Password` for the two maintenance commands. Then set
+`BootstrapAdmin__RotateLegacySeed=false` and remove that password before normal
+startup.
 
-## Password migration behavior
-
-New credentials are stored with ASP.NET Core's password hasher. During the
-transition from the historical schema, a user with no `PasswordHash` can sign in
-with the existing password once; a successful login writes a hash and clears the
-legacy plaintext value before issuing a token. A non-null hash is authoritative,
-so an empty, malformed, or non-matching hash never falls back to plaintext.
-
-This is an additive database migration, but the data upgrade is intentionally
-one-way: an older application binary cannot authenticate an account after its
-plaintext value has been cleared. Stop all older instances and deploy this
-version as a coordinated maintenance release. Roll forward or restore a
-pre-migration backup on failure; the down migration refuses to discard stored
-hashes. Stop every application instance before applying or rolling back this
-migration.
+The final migration refuses to drop plaintext storage until every user has a
+nonblank hash and every plaintext value is cleared. Login never reads plaintext.
+This cleanup is intentionally one-way for plaintext data: roll forward or
+restore the backup if the deployment fails.

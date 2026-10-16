@@ -106,7 +106,6 @@ public sealed class CurrentUserJwtValidationTests : IClassFixture<ApiWebApplicat
         var user = new User
         {
             UserName = $"jwt-user-{Guid.NewGuid():N}",
-            Password = string.Empty,
             Role = role
         };
         user.PasswordHash = passwordHasher.HashPassword(user, password);

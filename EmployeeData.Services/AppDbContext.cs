@@ -18,21 +18,30 @@ namespace EmployeeData.Services
             {
                 user.HasIndex(candidate => candidate.UserName)
                     .IsUnique();
+                user.Property(candidate => candidate.ProfilePictureUrl)
+                    .IsRequired(false);
                 user.ToTable(table =>
                 {
                     table.HasCheckConstraint(
                         "CK_Users_UserName_NotBlank",
                         "TRIM([UserName]) <> ''");
                     table.HasCheckConstraint(
+                        "CK_Users_PasswordHash_NotBlank",
+                        "TRIM([PasswordHash]) <> ''");
+                    table.HasCheckConstraint(
                         "CK_Users_Role",
                         "[Role] IN ('Administrator', 'Employee')");
                 });
             });
 
-            modelBuilder.Entity<Project>()
-                .ToTable(table => table.HasCheckConstraint(
+            modelBuilder.Entity<Project>(project =>
+            {
+                project.Property(candidate => candidate.Description)
+                    .IsRequired(false);
+                project.ToTable(table => table.HasCheckConstraint(
                     "CK_Projects_Name_NotBlank",
                     "TRIM([Name]) <> ''"));
+            });
 
             modelBuilder.Entity<Task>()
                 .HasOne(task => task.Project)
@@ -40,10 +49,14 @@ namespace EmployeeData.Services
                 .HasForeignKey(task => task.ProjectId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired();
-            modelBuilder.Entity<Task>()
-                .ToTable(table => table.HasCheckConstraint(
+            modelBuilder.Entity<Task>(task =>
+            {
+                task.Property(candidate => candidate.Description)
+                    .IsRequired(false);
+                task.ToTable(table => table.HasCheckConstraint(
                     "CK_Tasks_Title_NotBlank",
                     "TRIM([Title]) <> ''"));
+            });
 
             modelBuilder.Entity<UserProject>()
                 .HasKey(up => new { up.UserId, up.ProjectId });

@@ -43,7 +43,6 @@ public sealed class AdministratorBootstrapperTests
         var administrator = Assert.Single(harness.DbContext.Users.AsNoTracking());
         Assert.Equal("initial-admin", administrator.UserName);
         Assert.Equal("Administrator", administrator.Role);
-        Assert.Equal(string.Empty, administrator.Password);
         Assert.Equal(originalHash, administrator.PasswordHash);
         Assert.Equal(
             PasswordVerificationResult.Success,
@@ -60,8 +59,7 @@ public sealed class AdministratorBootstrapperTests
         harness.DbContext.Users.Add(new User
         {
             UserName = "existing-user",
-            Password = "legacy-password",
-            PasswordHash = null,
+            PasswordHash = "not-used-by-this-test",
             Role = "Employee"
         });
         harness.DbContext.SaveChanges();
@@ -105,49 +103,20 @@ public sealed class AdministratorBootstrapperTests
     }
 
     [Fact]
-    public void Historical_fixed_administrator_requires_explicit_rotation()
+    public void Legacy_seed_rotation_setting_is_rejected_during_normal_startup()
     {
         using var harness = new BootstrapHarness();
-        harness.DbContext.Users.Add(CreateHistoricalAdministrator());
-        harness.DbContext.SaveChanges();
-
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            harness.CreateBootstrapper(new BootstrapAdminOptions()).Bootstrap());
-
-        Assert.Contains("public credential", exception.Message, StringComparison.Ordinal);
-        var unchangedAdministrator = Assert.Single(
-            harness.DbContext.Users.AsNoTracking());
-        Assert.Equal("adminpassword", unchangedAdministrator.Password);
-        Assert.Null(unchangedAdministrator.PasswordHash);
-    }
-
-    [Fact]
-    public void Explicit_legacy_seed_rotation_is_hashed_and_idempotent()
-    {
-        using var harness = new BootstrapHarness();
-        harness.DbContext.Users.Add(CreateHistoricalAdministrator());
-        harness.DbContext.SaveChanges();
-        const string replacementPassword = "unique-replacement-password";
         var bootstrapper = harness.CreateBootstrapper(new BootstrapAdminOptions
         {
             RotateLegacySeed = true,
             UserName = "admin",
-            Password = replacementPassword
+            Password = "unique-replacement-password"
         });
 
-        bootstrapper.Bootstrap();
-        var originalHash = harness.DbContext.Users.Single().PasswordHash;
-        bootstrapper.Bootstrap();
+        var exception = Assert.Throws<InvalidOperationException>(bootstrapper.Bootstrap);
 
-        var administrator = Assert.Single(harness.DbContext.Users.AsNoTracking());
-        Assert.Equal(string.Empty, administrator.Password);
-        Assert.Equal(originalHash, administrator.PasswordHash);
-        Assert.Equal(
-            PasswordVerificationResult.Success,
-            harness.PasswordHasher.VerifyHashedPassword(
-                administrator,
-                administrator.PasswordHash,
-                replacementPassword));
+        Assert.Contains("maintenance-command", exception.Message, StringComparison.Ordinal);
+        Assert.Empty(harness.DbContext.Users);
     }
 
     [Fact]
@@ -191,18 +160,6 @@ public sealed class AdministratorBootstrapperTests
         Assert.Contains(
             result.Failures,
             failure => failure.Contains("historical", StringComparison.Ordinal));
-    }
-
-    private static User CreateHistoricalAdministrator()
-    {
-        return new User
-        {
-            UserName = "admin",
-            Password = "adminpassword",
-            PasswordHash = null,
-            Role = "Administrator",
-            ProfilePictureUrl = "pp"
-        };
     }
 
     private sealed class BootstrapHarness : IDisposable

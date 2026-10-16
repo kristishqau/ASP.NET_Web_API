@@ -174,14 +174,12 @@ public sealed class ReadAuthorizationTests : IClassFixture<ApiWebApplicationFact
         var employee = new User
         {
             UserName = $"read-employee-{suffix}",
-            Password = string.Empty,
             Role = "Employee"
         };
         employee.PasswordHash = passwordHasher.HashPassword(employee, password);
         var teammate = new User
         {
             UserName = $"read-teammate-{suffix}",
-            Password = string.Empty,
             Role = "Employee"
         };
         teammate.PasswordHash = passwordHasher.HashPassword(teammate, password);

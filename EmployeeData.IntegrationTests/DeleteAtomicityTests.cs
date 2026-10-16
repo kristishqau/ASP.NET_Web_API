@@ -149,7 +149,6 @@ public sealed class DeleteAtomicityTests : IClassFixture<ApiWebApplicationFactor
         var user = new User
         {
             UserName = $"delete-user-{suffix}",
-            Password = string.Empty,
             PasswordHash = "not-used-by-this-test",
             Role = "Employee"
         };
