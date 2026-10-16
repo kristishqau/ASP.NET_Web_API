@@ -23,8 +23,6 @@ namespace EmployeeData
 {
     public class Startup
     {
-        private readonly string MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
-
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -87,12 +85,21 @@ namespace EmployeeData
                         }));
             });
 
+            services.AddOptions<ApiCorsOptions>()
+                .Bind(Configuration.GetSection(ApiCorsOptions.SectionName))
+                .ValidateOnStart();
+            services.AddSingleton<
+                IValidateOptions<ApiCorsOptions>,
+                ApiCorsOptionsValidator>();
+            var corsOptions = Configuration
+                .GetSection(ApiCorsOptions.SectionName)
+                .Get<ApiCorsOptions>() ?? new ApiCorsOptions();
             services.AddCors(options =>
             {
-                options.AddPolicy(name: MyAllowSpecificOrigins,
+                options.AddPolicy(name: ApiCorsPolicy.Name,
                     builder =>
                     {
-                        builder.WithOrigins("http://localhost:8080")
+                        builder.WithOrigins(corsOptions.AllowedOrigins)
                                .AllowAnyHeader()
                                .AllowAnyMethod();
                     });
@@ -155,7 +162,7 @@ namespace EmployeeData
 
             app.UseHttpsRedirection();
             app.UseRouting();
-            app.UseCors(MyAllowSpecificOrigins);
+            app.UseCors(ApiCorsPolicy.Name);
             app.UseRateLimiter();
 
             app.UseAuthentication();

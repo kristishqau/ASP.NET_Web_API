@@ -80,7 +80,8 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 ["BootstrapAdmin:Password"] = AdministratorPassword,
                 ["BootstrapAdmin:ProfilePictureUrl"] = "test-profile-picture",
                 ["LoginRateLimit:PermitLimit"] = "1000",
-                ["LoginRateLimit:WindowSeconds"] = "60"
+                ["LoginRateLimit:WindowSeconds"] = "60",
+                ["Cors:AllowedOrigins:0"] = "https://client.example"
             };
 
             foreach (var setting in _configurationOverrides)
