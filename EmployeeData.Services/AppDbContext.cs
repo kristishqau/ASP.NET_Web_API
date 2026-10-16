@@ -1,4 +1,4 @@
-﻿using EmployeeData.Models;
+using EmployeeData.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeData.Services

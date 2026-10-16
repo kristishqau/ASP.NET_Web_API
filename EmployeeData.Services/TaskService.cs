@@ -1,4 +1,4 @@
-﻿using EmployeeData.Models;
+using EmployeeData.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -62,7 +62,7 @@ namespace EmployeeData.Services
             var userTaskEntity = _dbContext.Users.Where(u => u.Id == userId).FirstOrDefault();
             if (userTaskEntity == null)
                 return false;
-            
+
             var userTask = new UserTask()
             {
                 User = userTaskEntity,

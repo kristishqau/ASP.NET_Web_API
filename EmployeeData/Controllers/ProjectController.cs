@@ -1,4 +1,4 @@
-﻿using EmployeeData.Helper;
+using EmployeeData.Helper;
 using EmployeeData.Dto;
 using EmployeeData.Services;
 using Microsoft.AspNetCore.Authorization;

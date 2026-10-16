@@ -1,4 +1,4 @@
-﻿using EmployeeData.Models;
+using EmployeeData.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

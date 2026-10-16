@@ -1,4 +1,4 @@
-﻿using EmployeeData.Models;
+using EmployeeData.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 
