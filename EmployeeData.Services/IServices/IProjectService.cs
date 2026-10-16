@@ -7,11 +7,18 @@ namespace EmployeeData.Services
     {
         Project GetProject(int id); 
         Project GetProjectForUser(int userId, bool isAdministrator, int projectId);
-        ICollection<Task> GetTasksByProjectForUser(int userId, bool isAdministrator, int projectId);
+        PagedResult<Task> GetTasksByProjectForUser(
+            int userId,
+            bool isAdministrator,
+            int projectId,
+            PageRequest page);
         bool ProjectExists(int id);
         bool ProjectNameExists(string name, int? excludedProjectId = null);
         bool HasProjectMembership(int userId, int projectId);
-        IEnumerable<Project> GetProjectsForUser(int userId, bool isAdministrator);
+        PagedResult<Project> GetProjectsForUser(
+            int userId,
+            bool isAdministrator,
+            PageRequest page);
         bool CreateProject(int userId, Project project);
         bool SaveProject();
         DeletionResult DeleteProject(int projectId);

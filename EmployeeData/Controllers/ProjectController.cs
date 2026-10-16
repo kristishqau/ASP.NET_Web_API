@@ -31,10 +31,15 @@ namespace EmployeeData.Controllers
 
         [HttpGet]
         [ProducesResponseType(200, Type = typeof(IEnumerable<ProjectDto>))]
-        public IActionResult GetProjects()
+        public IActionResult GetProjects([FromQuery] PaginationQuery pagination)
         {
-            var projects = _projectService
-                .GetProjectsForUser(GetCurrentUserId(), User.IsInRole(AdministratorRole))
+            var pageRequest = pagination.ToPageRequest();
+            var page = _projectService.GetProjectsForUser(
+                GetCurrentUserId(),
+                User.IsInRole(AdministratorRole),
+                pageRequest);
+            PaginationHeaders.Add(Response, pageRequest, page.TotalCount);
+            var projects = page.Items
                 .Select(project => project.ToDto())
                 .ToList();
             return Ok(projects);
@@ -56,16 +61,21 @@ namespace EmployeeData.Controllers
         [HttpGet("{projectId}/tasks", Name = "GetTasksByProject")]
         [ProducesResponseType(200, Type = typeof(IEnumerable<TaskDto>))]
         [ProducesResponseType(404)]
-        public IActionResult GetTasksByProject(int projectId)
+        public IActionResult GetTasksByProject(
+            int projectId,
+            [FromQuery] PaginationQuery pagination)
         {
-            var projectTasks = _projectService.GetTasksByProjectForUser(
+            var pageRequest = pagination.ToPageRequest();
+            var page = _projectService.GetTasksByProjectForUser(
                 GetCurrentUserId(),
                 User.IsInRole(AdministratorRole),
-                projectId);
-            if (projectTasks == null)
+                projectId,
+                pageRequest);
+            if (page == null)
                 return NotFound();
 
-            var tasks = projectTasks.Select(task => task.ToDto()).ToList();
+            PaginationHeaders.Add(Response, pageRequest, page.TotalCount);
+            var tasks = page.Items.Select(task => task.ToDto()).ToList();
             return Ok(tasks);
         }
 
@@ -167,10 +177,16 @@ namespace EmployeeData.Controllers
         }
 
         [HttpGet("GetProjectsForUser")]
-        public IActionResult GetProjectsForUser()
+        public IActionResult GetProjectsForUser(
+            [FromQuery] PaginationQuery pagination)
         {
-            var projects = _projectService
-                .GetProjectsForUser(GetCurrentUserId(), User.IsInRole(AdministratorRole))
+            var pageRequest = pagination.ToPageRequest();
+            var page = _projectService.GetProjectsForUser(
+                GetCurrentUserId(),
+                User.IsInRole(AdministratorRole),
+                pageRequest);
+            PaginationHeaders.Add(Response, pageRequest, page.TotalCount);
+            var projects = page.Items
                 .Select(project => project.ToDto())
                 .ToList();
 

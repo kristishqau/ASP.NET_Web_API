@@ -27,9 +27,13 @@ namespace EmployeeData.Services
             _passwordHasher = passwordHasher;
         }
 
-        public ICollection<User> GetUsers()
+        public PagedResult<User> GetUsers(PageRequest page)
         {
-            return _dbContext.Users.OrderBy(u => u.Id).ToList();
+            return _dbContext.Users
+                .AsNoTracking()
+                .OrderBy(user => user.Id)
+                .Select(PublicUser())
+                .ToPage(page);
         }
         public User GetUser(int userId)
         {
@@ -49,10 +53,11 @@ namespace EmployeeData.Services
                 .SingleOrDefault();
         }
 
-        public ICollection<User> GetUsersOfATaskForUser(
+        public PagedResult<User> GetUsersOfATaskForUser(
             int currentUserId,
             bool isAdministrator,
-            int taskId)
+            int taskId,
+            PageRequest page)
         {
             var visibleTaskExists = _dbContext.Tasks
                 .AsNoTracking()
@@ -71,13 +76,14 @@ namespace EmployeeData.Services
                 .OrderBy(userTask => userTask.UserId)
                 .Select(userTask => userTask.User)
                 .Select(PublicUser())
-                .ToList();
+                .ToPage(page);
         }
 
-        public ICollection<User> GetUsersOfAProjectForUser(
+        public PagedResult<User> GetUsersOfAProjectForUser(
             int currentUserId,
             bool isAdministrator,
-            int projectId)
+            int projectId,
+            PageRequest page)
         {
             var visibleProjectExists = _dbContext.Projects
                 .AsNoTracking()
@@ -94,7 +100,7 @@ namespace EmployeeData.Services
                 .OrderBy(userProject => userProject.UserId)
                 .Select(userProject => userProject.User)
                 .Select(PublicUser())
-                .ToList();
+                .ToPage(page);
         }
 
         public UserAssignmentResult CreateUser(int? projectId, int? taskId, User user, string password)
@@ -350,6 +356,13 @@ namespace EmployeeData.Services
         public bool UserExists(int id)
         {
             return _dbContext.Users.Any(u => u.Id == id);
+        }
+        public bool UserNameExists(string userName, int? excludedUserId = null)
+        {
+            var normalizedUserName = userName.Trim().ToUpperInvariant();
+            return _dbContext.Users.Any(user =>
+                (!excludedUserId.HasValue || user.Id != excludedUserId.Value)
+                && (user.UserName ?? string.Empty).Trim().ToUpper() == normalizedUserName);
         }
         private static Expression<Func<User, User>> PublicUser()
         {

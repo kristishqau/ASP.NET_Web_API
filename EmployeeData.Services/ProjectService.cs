@@ -34,10 +34,11 @@ namespace EmployeeData.Services
                 .SingleOrDefault();
         }
 
-        public ICollection<Task> GetTasksByProjectForUser(
+        public PagedResult<Task> GetTasksByProjectForUser(
             int userId,
             bool isAdministrator,
-            int projectId)
+            int projectId,
+            PageRequest page)
         {
             var canAccessProject = VisibleProjects(userId, isAdministrator)
                 .Any(project => project.Id == projectId);
@@ -56,7 +57,7 @@ namespace EmployeeData.Services
                     IsFinished = task.IsFinished,
                     ProjectId = task.ProjectId
                 })
-                .ToList();
+                .ToPage(page);
         }
 
         public bool CreateProject(int userId, Project project)
@@ -76,7 +77,10 @@ namespace EmployeeData.Services
             return SaveProject();
         }
 
-        public IEnumerable<Project> GetProjectsForUser(int userId, bool isAdministrator)
+        public PagedResult<Project> GetProjectsForUser(
+            int userId,
+            bool isAdministrator,
+            PageRequest page)
         {
             return VisibleProjects(userId, isAdministrator)
                 .OrderBy(project => project.Id)
@@ -86,7 +90,7 @@ namespace EmployeeData.Services
                     Name = project.Name,
                     Description = project.Description
                 })
-                .ToList();
+                .ToPage(page);
         }
 
         public DeletionResult DeleteProject(int projectId)

@@ -62,9 +62,12 @@ namespace EmployeeData.Controllers
         [HttpGet]
         [Authorize(Roles = AdministratorRole)]
         [ProducesResponseType(200, Type = typeof(IEnumerable<UserResponse>))]
-        public IActionResult GetUsers()
+        public IActionResult GetUsers([FromQuery] PaginationQuery pagination)
         {
-            var users = _userService.GetUsers().Select(user => user.ToResponse()).ToList();
+            var pageRequest = pagination.ToPageRequest();
+            var page = _userService.GetUsers(pageRequest);
+            PaginationHeaders.Add(Response, pageRequest, page.TotalCount);
+            var users = page.Items.Select(user => user.ToResponse()).ToList();
             return Ok(users);
         }
 
@@ -86,16 +89,21 @@ namespace EmployeeData.Controllers
         [HttpGet("tasks/{taskId}/users")]
         [ProducesResponseType(200, Type = typeof(IEnumerable<UserResponse>))]
         [ProducesResponseType(404)]
-        public IActionResult GetUsersOfATask(int taskId)
+        public IActionResult GetUsersOfATask(
+            int taskId,
+            [FromQuery] PaginationQuery pagination)
         {
-            var users = _userService.GetUsersOfATaskForUser(
+            var pageRequest = pagination.ToPageRequest();
+            var page = _userService.GetUsersOfATaskForUser(
                 _userService.GetCurrentUserId(),
                 User.IsInRole(AdministratorRole),
-                taskId);
-            if (users == null)
+                taskId,
+                pageRequest);
+            if (page == null)
                 return NotFound();
 
-            var response = users
+            PaginationHeaders.Add(Response, pageRequest, page.TotalCount);
+            var response = page.Items
                 .Select(taskUser => taskUser.ToResponse())
                 .ToList();
 
@@ -105,16 +113,21 @@ namespace EmployeeData.Controllers
         [HttpGet("projects/{projectId}/users")]
         [ProducesResponseType(200, Type = typeof(IEnumerable<UserResponse>))]
         [ProducesResponseType(404)]
-        public IActionResult GetUsersOfAProject(int projectId)
+        public IActionResult GetUsersOfAProject(
+            int projectId,
+            [FromQuery] PaginationQuery pagination)
         {
-            var users = _userService.GetUsersOfAProjectForUser(
+            var pageRequest = pagination.ToPageRequest();
+            var page = _userService.GetUsersOfAProjectForUser(
                 _userService.GetCurrentUserId(),
                 User.IsInRole(AdministratorRole),
-                projectId);
-            if (users == null)
+                projectId,
+                pageRequest);
+            if (page == null)
                 return NotFound();
 
-            var response = users
+            PaginationHeaders.Add(Response, pageRequest, page.TotalCount);
+            var response = page.Items
                 .Select(projectUser => projectUser.ToResponse())
                 .ToList();
 
@@ -145,14 +158,7 @@ namespace EmployeeData.Controllers
                 return ValidationProblem(ModelState);
             }
 
-            var users = _userService.GetUsers()
-                .Where(user => string.Equals(
-                    user.UserName.Trim(),
-                    userName,
-                    StringComparison.OrdinalIgnoreCase))
-                .FirstOrDefault();
-
-            if (users != null)
+            if (_userService.UserNameExists(userName))
             {
                 ModelState.AddModelError("", "User already exists");
                 return ValidationProblem(
@@ -207,12 +213,7 @@ namespace EmployeeData.Controllers
                 return ValidationProblem(ModelState);
             }
 
-            if (_userService.GetUsers().Any(user =>
-                user.Id != userId
-                && string.Equals(
-                    user.UserName.Trim(),
-                    userName,
-                    StringComparison.OrdinalIgnoreCase)))
+            if (_userService.UserNameExists(userName, userId))
             {
                 ModelState.AddModelError(nameof(request.UserName), "User already exists.");
                 return ValidationProblem(

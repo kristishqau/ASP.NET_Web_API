@@ -1,6 +1,7 @@
 using EmployeeData.Services;
 using EmployeeData.Security;
 using EmployeeData.Models;
+using EmployeeData.Helper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -103,7 +104,11 @@ namespace EmployeeData
                     {
                         builder.WithOrigins(corsOptions.AllowedOrigins)
                                .AllowAnyHeader()
-                               .AllowAnyMethod();
+                               .AllowAnyMethod()
+                               .WithExposedHeaders(
+                                   PaginationHeaders.PageNumber,
+                                   PaginationHeaders.PageSize,
+                                   PaginationHeaders.TotalCount);
                     });
             });
 

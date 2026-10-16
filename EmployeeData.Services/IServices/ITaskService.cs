@@ -6,7 +6,10 @@ namespace EmployeeData.Services
     public interface ITaskService
     {
         Task GetTask(int id); 
-        ICollection<Task> GetTasksForUser(int userId, bool isAdministrator);
+        PagedResult<Task> GetTasksForUser(
+            int userId,
+            bool isAdministrator,
+            PageRequest page);
         Task GetTaskForUser(int userId, bool isAdministrator, int taskId);
         bool TaskExists(int id);
         bool TaskTitleExists(string title, int? excludedTaskId = null);

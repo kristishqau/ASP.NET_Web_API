@@ -29,12 +29,21 @@ namespace EmployeeData.Services
 
     public interface IUserService
     {
-        ICollection<User> GetUsers();
+        PagedResult<User> GetUsers(PageRequest page);
         User GetUser(int userId);
         User GetUserForUser(int currentUserId, bool isAdministrator, int userId);
-        ICollection<User> GetUsersOfATaskForUser(int currentUserId, bool isAdministrator, int taskId);
-        ICollection<User> GetUsersOfAProjectForUser(int currentUserId, bool isAdministrator, int projectId);
+        PagedResult<User> GetUsersOfATaskForUser(
+            int currentUserId,
+            bool isAdministrator,
+            int taskId,
+            PageRequest page);
+        PagedResult<User> GetUsersOfAProjectForUser(
+            int currentUserId,
+            bool isAdministrator,
+            int projectId,
+            PageRequest page);
         bool UserExists(int id);
+        bool UserNameExists(string userName, int? excludedUserId = null);
         UserAssignmentResult CreateUser(int? projectId, int? taskId, User user, string password);
         bool SaveUser();
         string GetUserRole(int userId);

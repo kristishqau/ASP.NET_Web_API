@@ -23,7 +23,10 @@ namespace EmployeeData.Services
             return _dbContext.Tasks.Where(t => t.Id == id).FirstOrDefault();
         }
 
-        public ICollection<Task> GetTasksForUser(int userId, bool isAdministrator)
+        public PagedResult<Task> GetTasksForUser(
+            int userId,
+            bool isAdministrator,
+            PageRequest page)
         {
             return VisibleTasks(userId, isAdministrator)
                 .OrderBy(task => task.Id)
@@ -35,7 +38,7 @@ namespace EmployeeData.Services
                     IsFinished = task.IsFinished,
                     ProjectId = task.ProjectId
                 })
-                .ToList();
+                .ToPage(page);
         }
 
         public Task GetTaskForUser(int userId, bool isAdministrator, int taskId)

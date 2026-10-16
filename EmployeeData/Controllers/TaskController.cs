@@ -28,12 +28,15 @@ namespace EmployeeData.Controllers
 
         [HttpGet]
         [ProducesResponseType(200, Type = typeof(IEnumerable<TaskDto>))]
-        public IActionResult GetTasks()
+        public IActionResult GetTasks([FromQuery] PaginationQuery pagination)
         {
-            var tasks = _taskService
-                .GetTasksForUser(
-                    _taskService.GetCurrentUserId(),
-                    User.IsInRole(AdministratorRole))
+            var pageRequest = pagination.ToPageRequest();
+            var page = _taskService.GetTasksForUser(
+                _taskService.GetCurrentUserId(),
+                User.IsInRole(AdministratorRole),
+                pageRequest);
+            PaginationHeaders.Add(Response, pageRequest, page.TotalCount);
+            var tasks = page.Items
                 .Select(task => task.ToDto())
                 .ToList();
             return Ok(tasks);
