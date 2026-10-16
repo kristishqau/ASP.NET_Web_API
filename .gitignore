@@ -62,3 +62,4 @@ build/
 
 # Ignore deployment files
 .publish/
+EmployeeData/Properties/ServiceDependencies/
