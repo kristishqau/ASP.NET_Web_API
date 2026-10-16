@@ -2,6 +2,7 @@
 using EmployeeData.Dto;
 using EmployeeData.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Linq;
@@ -74,7 +75,9 @@ namespace EmployeeData.Controllers
             if (!(_userService.UserExists(userId) && _projectService.ProjectExists(projectId)))
             {
                 ModelState.AddModelError("", "Enter the corrects Id inputs for both user and project.");
-                return StatusCode(422, ModelState);
+                return ValidationProblem(
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    modelStateDictionary: ModelState);
             }
 
             taskCreate.Title = taskCreate.Title.Trim();
@@ -88,7 +91,9 @@ namespace EmployeeData.Controllers
             if (_taskService.TaskTitleExists(taskCreate.Title))
             {
                 ModelState.AddModelError("", "Task already exists");
-                return StatusCode(422, ModelState);
+                return ValidationProblem(
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    modelStateDictionary: ModelState);
             }
 
             if (!_projectService.HasProjectMembership(userId, projectId))
@@ -107,7 +112,9 @@ namespace EmployeeData.Controllers
             if (!_taskService.CreateTask(userId, taskMap))
             {
                 ModelState.AddModelError("", "Something went wrong while saving");
-                return StatusCode(500, ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "The request could not be completed.");
             }
 
             return CreatedAtRoute(
@@ -153,7 +160,9 @@ namespace EmployeeData.Controllers
             if (_taskService.TaskTitleExists(updatedTask.Title, taskId))
             {
                 ModelState.AddModelError(nameof(updatedTask.Title), "Task already exists.");
-                return StatusCode(422, ModelState);
+                return ValidationProblem(
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    modelStateDictionary: ModelState);
             }
 
             var task = _taskService.GetTask(taskId);
@@ -171,7 +180,9 @@ namespace EmployeeData.Controllers
             if (!_taskService.SaveTask())
             {
                 ModelState.AddModelError("", "Something went wrong updating User properties.");
-                return StatusCode(500, ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "The request could not be completed.");
             }
 
             return NoContent();
@@ -187,14 +198,17 @@ namespace EmployeeData.Controllers
             var result = _taskService.DeleteTask(taskId);
             if (result == DeletionResult.NotFound)
             {
-                ModelState.AddModelError("", "Task not found");
-                return NotFound(ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Task not found");
             }
 
             if (result != DeletionResult.Succeeded)
             {
                 ModelState.AddModelError("", "Failed to delete task");
-                return StatusCode(500, ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "The request could not be completed.");
             }
 
             return NoContent();

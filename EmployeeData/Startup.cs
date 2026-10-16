@@ -37,6 +37,8 @@ namespace EmployeeData
                     Configuration.GetConnectionString("DefaultConnection"),
                     b => b.MigrationsAssembly("EmployeeData")));
 
+            services.AddProblemDetails();
+
             services.AddJwtSecurity(Configuration);
             services.AddOptions<BootstrapAdminOptions>()
                 .Bind(Configuration.GetSection(BootstrapAdminOptions.SectionName))
@@ -151,8 +153,11 @@ namespace EmployeeData
             }
             else
             {
+                app.UseExceptionHandler();
                 app.UseHsts();
             }
+
+            app.UseStatusCodePages();
 
             if (!env.IsEnvironment("Testing"))
             {

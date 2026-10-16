@@ -3,6 +3,7 @@ using EmployeeData.Dto;
 using EmployeeData.Security;
 using EmployeeData.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System;
@@ -43,7 +44,9 @@ namespace EmployeeData.Controllers
                 request.Password);
             if (result == null)
             {
-                return Unauthorized(new { Message = "Invalid credentials" });
+                return Problem(
+                    statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Invalid credentials");
             }
 
             return Ok(new LoginResponse
@@ -152,7 +155,9 @@ namespace EmployeeData.Controllers
             if (users != null)
             {
                 ModelState.AddModelError("", "User already exists");
-                return StatusCode(422, ModelState);
+                return ValidationProblem(
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    modelStateDictionary: ModelState);
             }
 
             request.UserName = userName;
@@ -210,7 +215,9 @@ namespace EmployeeData.Controllers
                     StringComparison.OrdinalIgnoreCase)))
             {
                 ModelState.AddModelError(nameof(request.UserName), "User already exists.");
-                return StatusCode(422, ModelState);
+                return ValidationProblem(
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    modelStateDictionary: ModelState);
             }
 
             var user = _userService.GetUser(userId);
@@ -223,7 +230,9 @@ namespace EmployeeData.Controllers
             if (!_userService.SaveUser())
             {
                 ModelState.AddModelError("", "Something went wrong updating User properties.");
-                return StatusCode(500, ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "The request could not be completed.");
             }
 
             return NoContent();
@@ -255,13 +264,15 @@ namespace EmployeeData.Controllers
                 ModelState.AddModelError(
                     nameof(request.Role),
                     "The last administrator cannot be demoted.");
-                return BadRequest(ModelState);
+                return ValidationProblem(ModelState);
             }
 
             if (result == UserChangeResult.SaveFailed)
             {
                 ModelState.AddModelError("", "Something went wrong updating the user role.");
-                return StatusCode(500, ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "The request could not be completed.");
             }
 
             return NoContent();
@@ -310,20 +321,23 @@ namespace EmployeeData.Controllers
             var result = _userService.DeleteUser(userId);
             if (result == UserChangeResult.NotFound)
             {
-                ModelState.AddModelError("", "User not found");
-                return NotFound(ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "User not found");
             }
 
             if (result == UserChangeResult.LastAdministrator)
             {
                 ModelState.AddModelError("", "The last administrator cannot be deleted.");
-                return BadRequest(ModelState);
+                return ValidationProblem(ModelState);
             }
 
             if (result != UserChangeResult.Succeeded)
             {
                 ModelState.AddModelError("", "Failed to delete user");
-                return StatusCode(500, ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "The request could not be completed.");
             }
 
             return NoContent();
@@ -348,9 +362,14 @@ namespace EmployeeData.Controllers
             };
 
             ModelState.AddModelError("", message);
-            return result == UserAssignmentResult.SaveFailed
-                ? StatusCode(500, ModelState)
-                : BadRequest(ModelState);
+            if (result == UserAssignmentResult.SaveFailed)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "The request could not be completed.");
+            }
+
+            return ValidationProblem(ModelState);
         }
 
         private static string GetCanonicalRole(string role)

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using EmployeeData.Models;
 using EmployeeData.Security;
 using EmployeeData.Services;
@@ -42,7 +43,31 @@ public sealed class LoginProtectionTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, missingResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, knownResponse.StatusCode);
-        Assert.Equal(missingBody, knownBody);
+        Assert.Equal("application/problem+json", missingResponse.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("application/problem+json", knownResponse.Content.Headers.ContentType?.MediaType);
+
+        using var missingProblem = JsonDocument.Parse(missingBody);
+        using var knownProblem = JsonDocument.Parse(knownBody);
+        Assert.Equal(
+            missingProblem.RootElement.GetProperty("type").GetString(),
+            knownProblem.RootElement.GetProperty("type").GetString());
+        Assert.Equal(
+            missingProblem.RootElement.GetProperty("title").GetString(),
+            knownProblem.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            missingProblem.RootElement.GetProperty("status").GetInt32(),
+            knownProblem.RootElement.GetProperty("status").GetInt32());
+        Assert.Equal(
+            missingProblem.RootElement.TryGetProperty("detail", out _),
+            knownProblem.RootElement.TryGetProperty("detail", out _));
+        Assert.Equal(
+            missingProblem.RootElement.TryGetProperty("errors", out _),
+            knownProblem.RootElement.TryGetProperty("errors", out _));
+        Assert.DoesNotContain("missing-user", missingBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            ApiWebApplicationFactory.AdministratorUserName,
+            knownBody,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -75,8 +100,14 @@ public sealed class LoginProtectionTests
             TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
+        Assert.Equal(
+            "application/problem+json",
+            limitedResponse.Content.Headers.ContentType?.MediaType);
         Assert.NotNull(limitedResponse.Headers.RetryAfter);
         Assert.True(limitedResponse.Headers.RetryAfter.Delta > TimeSpan.Zero);
+        var limitedProblem = await limitedResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+        Assert.Equal((int)HttpStatusCode.TooManyRequests, limitedProblem.GetProperty("status").GetInt32());
     }
 
     [Fact]

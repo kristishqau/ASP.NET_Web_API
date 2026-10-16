@@ -94,6 +94,8 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
+            services.AddControllers()
+                .AddApplicationPart(typeof(ProblemDetailsTestController).Assembly);
             services.AddDataProtection().UseEphemeralDataProtectionProvider();
             services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
             services.RemoveAll<DbContextOptions<AppDbContext>>();

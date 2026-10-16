@@ -2,6 +2,7 @@
 using EmployeeData.Dto;
 using EmployeeData.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -101,7 +102,9 @@ namespace EmployeeData.Controllers
             if (projects != null)
             {
                 ModelState.AddModelError("", "Project already exists");
-                return StatusCode(422, ModelState);
+                return ValidationProblem(
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    modelStateDictionary: ModelState);
             }
 
             var projectMap = projectCreate.ToEntity();
@@ -109,7 +112,9 @@ namespace EmployeeData.Controllers
             if (!_projectService.CreateProject(userId, projectMap))
             {
                 ModelState.AddModelError("", "Something went wrong while saving");
-                return StatusCode(500, ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "The request could not be completed.");
             }
 
             return CreatedAtRoute(
@@ -148,7 +153,9 @@ namespace EmployeeData.Controllers
                     StringComparison.OrdinalIgnoreCase)))
             {
                 ModelState.AddModelError(nameof(updatedProject.Name), "Project already exists.");
-                return StatusCode(422, ModelState);
+                return ValidationProblem(
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    modelStateDictionary: ModelState);
             }
 
             if (project.Name == updatedProject.Name
@@ -163,7 +170,9 @@ namespace EmployeeData.Controllers
             if (!_projectService.SaveProject())
             {
                 ModelState.AddModelError("", "Something went wrong updating the project.");
-                return StatusCode(500, ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "The request could not be completed.");
             }
 
             return NoContent();
@@ -190,20 +199,23 @@ namespace EmployeeData.Controllers
             var result = _projectService.DeleteProject(projectId);
             if (result == DeletionResult.NotFound)
             {
-                ModelState.AddModelError("", "Project not found");
-                return NotFound(ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Project not found");
             }
 
             if (result == DeletionResult.HasUnfinishedTasks)
             {
                 ModelState.AddModelError("", "Cannot delete project with unfinished tasks.");
-                return BadRequest(ModelState);
+                return ValidationProblem(ModelState);
             }
 
             if (result != DeletionResult.Succeeded)
             {
                 ModelState.AddModelError("", "Failed to delete project.");
-                return StatusCode(500, ModelState);
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "The request could not be completed.");
             }
 
             return NoContent();
