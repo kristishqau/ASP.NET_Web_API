@@ -2,6 +2,7 @@ using EmployeeData.Services;
 using EmployeeData.Security;
 using EmployeeData.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -108,8 +109,9 @@ namespace EmployeeData
 
             services.AddAuthorization(options =>
             {
-                options.AddPolicy("Administrator", policy => policy.RequireRole("Administrator"));
-                options.AddPolicy("Employee", policy => policy.RequireRole("Employee"));
+                options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                    .RequireAuthenticatedUser()
+                    .Build();
             });
 
             services.AddHttpContextAccessor();
@@ -140,6 +142,10 @@ namespace EmployeeData
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "EmployeeData v1"));
             }
+            else
+            {
+                app.UseHsts();
+            }
 
             if (!env.IsEnvironment("Testing"))
             {
@@ -147,11 +153,9 @@ namespace EmployeeData
                 BootstrapAdministrator(app);
             }
 
-            // ? Use CORS
-            app.UseCors(MyAllowSpecificOrigins);
-
             app.UseHttpsRedirection();
             app.UseRouting();
+            app.UseCors(MyAllowSpecificOrigins);
             app.UseRateLimiter();
 
             app.UseAuthentication();
